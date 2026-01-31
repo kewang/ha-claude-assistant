@@ -176,8 +176,9 @@ class SlackBot {
       if (text.toLowerCase() === 'status') {
         try {
           const result = await this.haClient.checkConnection();
+          const connType = this.haClient.getConnectionType() === 'internal' ? '內網' : '外網';
           await respond({
-            text: `✅ Home Assistant 連線正常：${result.message}`,
+            text: `✅ Home Assistant 連線正常 (${connType})：${result.message}\nURL: ${this.haClient.getCurrentUrl()}`,
           });
         } catch (error) {
           await respond({
@@ -331,6 +332,15 @@ class SlackBot {
   }
 
   async start(): Promise<void> {
+    // 自動偵測 Home Assistant 連線
+    try {
+      const connection = await this.haClient.autoConnect();
+      console.log(`✓ Home Assistant 連線成功 (${connection.type === 'internal' ? '內網' : '外網'}): ${connection.url}`);
+    } catch (error) {
+      console.error(`⚠️ Home Assistant 連線失敗: ${error instanceof Error ? error.message : error}`);
+      console.error('  Bot 仍會啟動，但 HA 相關功能可能無法使用');
+    }
+
     // 載入預設排程
     this.loadDefaultSchedules();
     this.scheduler.startAll();

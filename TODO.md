@@ -44,16 +44,23 @@ claude mcp add --transport stdio ha-assistant \
 
 ---
 
+## ✅ 已完成：內網/外網自動切換
+
+### ✅ 8. 內網/外網 URL 自動偵測
+新增 `HA_URL_EXTERNAL` 環境變數支援：
+- 啟動時自動偵測連線，優先使用內網
+- 內網失敗時自動切換到外網
+- CLI、Slack Bot、MCP Server 都支援此功能
+- `/ha status` 指令顯示目前連線類型
+
+---
+
 ## 後續開發建議
 
 ### 功能增強
 - [ ] 新增更多 Claude tools（場景控制、自動化觸發等）
 - [ ] 支援更複雜的自然語言（「把所有燈關掉」批次操作）
 - [ ] 加入對話記憶持久化（目前重啟就會清除）
-
-### Phase 5: WhatsApp 整合
-- [ ] 評估 Twilio vs Meta Cloud API
-- [ ] 實作 WhatsApp 介面（需要 webhook endpoint）
 
 ### 監控與日誌
 - [ ] 加入結構化日誌（pino 或 winston）

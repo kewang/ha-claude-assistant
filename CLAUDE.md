@@ -65,6 +65,7 @@ config/default.json       # 預設設定
 
 ```
 HA_URL=http://homeassistant.local:8123
+HA_URL_EXTERNAL=https://your-ha.duckdns.org:8123  # 選用，外網 URL
 HA_TOKEN=<長期存取權杖>
 ANTHROPIC_API_KEY=<Anthropic API Key>
 
@@ -73,6 +74,14 @@ SLACK_BOT_TOKEN=xoxb-...
 SLACK_APP_TOKEN=xapp-...
 SLACK_DEFAULT_CHANNEL=C...
 ```
+
+### 內網/外網自動切換
+
+設定 `HA_URL_EXTERNAL` 後，系統會自動偵測：
+1. 先嘗試連接內網 `HA_URL`
+2. 若連線失敗，自動切換到外網 `HA_URL_EXTERNAL`
+
+這樣在家或外出時都能正常使用。
 
 ## 核心類別
 

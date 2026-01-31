@@ -34,6 +34,15 @@ try {
   process.exit(1);
 }
 
+// 自動偵測連線（在背景執行，不阻塞 MCP 啟動）
+haClient.autoConnect()
+  .then((connection) => {
+    console.error(`HA connected (${connection.type}): ${connection.url}`);
+  })
+  .catch((error) => {
+    console.error('HA auto-connect failed:', error instanceof Error ? error.message : error);
+  });
+
 // 列出可用工具
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {

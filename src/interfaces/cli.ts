@@ -77,8 +77,10 @@ class CLI {
   private async checkStatus(): Promise<void> {
     console.log('檢查 Home Assistant 連線...');
     try {
+      const connection = await this.haClient.autoConnect();
       const result = await this.haClient.checkConnection();
-      console.log(`✓ 連線成功: ${result.message}\n`);
+      console.log(`✓ 連線成功 (${connection.type === 'internal' ? '內網' : '外網'}): ${result.message}`);
+      console.log(`  URL: ${connection.url}\n`);
     } catch (error) {
       console.error(`✗ 連線失敗: ${error instanceof Error ? error.message : error}\n`);
     }

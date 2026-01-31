@@ -31,6 +31,7 @@ export interface HAServiceCallResult {
 
 export interface HAClientConfig {
   url: string;
+  externalUrl?: string;
   token: string;
   timeout?: number;
   retryAttempts?: number;
@@ -38,21 +39,97 @@ export interface HAClientConfig {
 
 export class HAClient {
   private baseUrl: string;
+  private internalUrl: string;
+  private externalUrl: string | null;
   private token: string;
   private timeout: number;
   private retryAttempts: number;
+  private isUsingExternal: boolean = false;
 
   constructor(config?: Partial<HAClientConfig>) {
-    this.baseUrl = (config?.url || process.env.HA_URL || '').replace(/\/$/, '');
+    this.internalUrl = (config?.url || process.env.HA_URL || '').replace(/\/$/, '');
+    this.externalUrl = (config?.externalUrl || process.env.HA_URL_EXTERNAL || '').replace(/\/$/, '') || null;
+    this.baseUrl = this.internalUrl;
     this.token = config?.token || process.env.HA_TOKEN || '';
     this.timeout = config?.timeout || 10000;
     this.retryAttempts = config?.retryAttempts || 3;
 
-    if (!this.baseUrl) {
+    if (!this.internalUrl) {
       throw new Error('Home Assistant URL is required. Set HA_URL environment variable.');
     }
     if (!this.token) {
       throw new Error('Home Assistant token is required. Set HA_TOKEN environment variable.');
+    }
+  }
+
+  /**
+   * 取得目前使用的 URL 類型
+   */
+  getConnectionType(): 'internal' | 'external' {
+    return this.isUsingExternal ? 'external' : 'internal';
+  }
+
+  /**
+   * 取得目前使用的 URL
+   */
+  getCurrentUrl(): string {
+    return this.baseUrl;
+  }
+
+  /**
+   * 自動偵測並連線到可用的 Home Assistant
+   * 優先使用內網，失敗時切換到外網
+   */
+  async autoConnect(): Promise<{ url: string; type: 'internal' | 'external' }> {
+    // 先嘗試內網
+    try {
+      this.baseUrl = this.internalUrl;
+      this.isUsingExternal = false;
+      await this.checkConnectionQuick();
+      return { url: this.baseUrl, type: 'internal' };
+    } catch {
+      // 內網失敗，嘗試外網
+      if (this.externalUrl) {
+        try {
+          this.baseUrl = this.externalUrl;
+          this.isUsingExternal = true;
+          await this.checkConnectionQuick();
+          return { url: this.baseUrl, type: 'external' };
+        } catch {
+          // 外網也失敗，還原為內網並拋出錯誤
+          this.baseUrl = this.internalUrl;
+          this.isUsingExternal = false;
+          throw new Error('無法連線到 Home Assistant（內網和外網都失敗）');
+        }
+      }
+      throw new Error('無法連線到 Home Assistant（內網失敗，未設定外網 URL）');
+    }
+  }
+
+  /**
+   * 快速檢查連線（較短 timeout，不重試）
+   */
+  private async checkConnectionQuick(): Promise<void> {
+    const url = `${this.baseUrl}/api/`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 秒 timeout
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
     }
   }
 
