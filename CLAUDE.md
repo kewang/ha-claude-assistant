@@ -8,7 +8,7 @@
 
 - **Runtime**: Node.js 20+
 - **Language**: TypeScript (ESM)
-- **AI**: @anthropic-ai/sdk (Claude API with tool-use)
+- **AI**: Claude CLI (`claude --print`)
 - **MCP**: @modelcontextprotocol/sdk
 - **Slack**: @slack/bolt (Socket Mode)
 - **Scheduler**: node-cron
@@ -42,15 +42,13 @@ npm run scheduler    # 排程服務（背景執行）
 src/
 ├── core/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
-│   ├── claude-agent.ts   # Claude AI Agent（tool-use 迴圈）
-│   ├── scheduler.ts      # Cron 排程器（記憶體）
 │   └── schedule-store.ts # 排程持久化儲存
 ├── interfaces/
-│   ├── cli.ts            # CLI 互動介面
+│   ├── cli.ts            # CLI 互動介面（使用 Claude CLI）
 │   ├── mcp-server.ts     # MCP Server（stdio）
-│   ├── slack-bot.ts      # Slack Bot（Socket Mode）
-│   └── scheduler-daemon.ts # 獨立排程服務
-├── tools/                # Claude tools 定義
+│   ├── slack-bot.ts      # Slack Bot（使用 Claude CLI）
+│   └── scheduler-daemon.ts # 排程服務（使用 Claude CLI）
+├── tools/                # MCP Tools 定義
 │   ├── list-entities.ts  # 列出實體
 │   ├── get-states.ts     # 取得狀態
 │   ├── call-service.ts   # 呼叫服務
@@ -66,6 +64,26 @@ tests/                    # Vitest 測試
 config/default.json       # 預設設定
 ```
 
+## 架構說明
+
+所有介面統一使用 Claude CLI (`claude --print`) 處理使用者請求：
+
+```
+CLI / Slack Bot / Scheduler
+         ↓
+   claude --print
+         ↓
+    MCP Server
+         ↓
+     HAClient
+         ↓
+  Home Assistant
+```
+
+前置需求：
+- `claude` CLI 已安裝並登入（`~/.local/bin/claude`）
+- MCP Server 已設定在 Claude Code 的 settings
+
 ## 環境變數
 
 必要的環境變數在 `.env`（從 `.env.example` 複製）：
@@ -74,7 +92,6 @@ config/default.json       # 預設設定
 HA_URL=http://homeassistant.local:8123
 HA_URL_EXTERNAL=https://your-ha.duckdns.org:8123  # 選用，外網 URL
 HA_TOKEN=<長期存取權杖>
-ANTHROPIC_API_KEY=<Anthropic API Key>
 
 # Slack（選用）
 SLACK_BOT_TOKEN=xoxb-...
@@ -98,16 +115,11 @@ SLACK_DEFAULT_CHANNEL=C...
 - `callService(domain, service, data)` - 呼叫服務
 - `searchEntities(query)` - 搜尋實體
 
-### ClaudeAgent (claude-agent.ts)
-- `chat(message)` - 對話（保留歷史）
-- `query(message)` - 單次查詢（不保留歷史）
-- `clearHistory()` - 清除對話歷史
-
-### Scheduler (scheduler.ts)
-- `addJob(job)` - 新增排程
-- `removeJob(id)` - 移除排程
-- `executeJob(id)` - 立即執行
-- `addNotificationHandler(fn)` - 註冊通知回調
+### ScheduleStore (schedule-store.ts)
+- `getAll()` - 取得所有排程
+- `create(schedule)` - 建立排程
+- `update(id, updates)` - 更新排程
+- `delete(id)` - 刪除排程
 
 ## Claude Tools
 

@@ -1,24 +1,79 @@
 #!/usr/bin/env node
+/**
+ * Slack Bot - 智慧家庭助理
+ *
+ * 透過 Claude CLI 處理使用者訊息，與 scheduler-daemon 保持一致的架構。
+ * 使用 MCP Server 與 Home Assistant 互動。
+ */
+
 import bolt from '@slack/bolt';
 const { App, LogLevel } = bolt;
 import { config } from 'dotenv';
+import { spawn } from 'child_process';
 import { HAClient } from '../core/ha-client.js';
-import { ClaudeAgent } from '../core/claude-agent.js';
-import { Scheduler, CronPresets } from '../core/scheduler.js';
 
 config();
 
-interface ConversationContext {
-  agent: ClaudeAgent;
-  lastActivity: Date;
+/**
+ * 執行 Claude CLI
+ */
+async function executeClaudePrompt(prompt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const claudePath = `${process.env.HOME}/.local/bin/claude`;
+
+    console.log(`[Slack] Running claude --print "${prompt.substring(0, 50)}..."`);
+
+    const child = spawn(claudePath, ['--print', prompt], {
+      env: {
+        ...process.env,
+        PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error('Claude 執行超時（2 分鐘）'));
+    }, 120000);
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+
+      if (stderr) {
+        console.error('[Slack] Claude stderr:', stderr);
+      }
+
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        console.error(`[Slack] Claude exited with code ${code}`);
+        console.error('[Slack] stdout:', stdout);
+        console.error('[Slack] stderr:', stderr);
+        reject(new Error(`Claude 執行失敗 (exit code: ${code})`));
+      }
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(new Error(`Claude 執行錯誤: ${error.message}`));
+    });
+  });
 }
 
 class SlackBot {
   private app: bolt.App;
   private haClient: HAClient;
-  private scheduler: Scheduler;
-  private conversations: Map<string, ConversationContext> = new Map();
-  private contextTimeout = 30 * 60 * 1000; // 30 分鐘後清除對話上下文
   private defaultChannelId?: string;
 
   constructor() {
@@ -31,15 +86,6 @@ class SlackBot {
 
     this.haClient = new HAClient();
 
-    // 建立一個共用的 agent 給 scheduler 使用
-    const schedulerAgent = new ClaudeAgent(this.haClient);
-    this.scheduler = new Scheduler(schedulerAgent);
-
-    // 設定 scheduler 的通知處理器
-    this.scheduler.addNotificationHandler(async (message, _jobId) => {
-      await this.sendNotification(message);
-    });
-
     this.app = new App({
       token: botToken,
       appToken: appToken,
@@ -51,26 +97,6 @@ class SlackBot {
 
     this.setupEventHandlers();
     this.setupCommands();
-  }
-
-  private getOrCreateAgent(userId: string): ClaudeAgent {
-    let context = this.conversations.get(userId);
-
-    if (!context) {
-      context = {
-        agent: new ClaudeAgent(this.haClient),
-        lastActivity: new Date(),
-      };
-      this.conversations.set(userId, context);
-    } else {
-      // 檢查是否過期
-      if (Date.now() - context.lastActivity.getTime() > this.contextTimeout) {
-        context.agent.clearHistory();
-      }
-      context.lastActivity = new Date();
-    }
-
-    return context.agent;
   }
 
   private setupEventHandlers(): void {
@@ -90,11 +116,10 @@ class SlackBot {
       console.log(`[Slack] Message from ${userId}: ${text}`);
 
       try {
-        const agent = this.getOrCreateAgent(userId);
-        const response = await agent.chat(text);
+        const response = await executeClaudePrompt(text);
 
         await say({
-          text: response.text,
+          text: response,
           thread_ts: message.ts,
         });
       } catch (error) {
@@ -131,11 +156,10 @@ class SlackBot {
       console.log(`[Slack] Mention from ${userId}: ${text}`);
 
       try {
-        const agent = this.getOrCreateAgent(userId);
-        const response = await agent.chat(text);
+        const response = await executeClaudePrompt(text);
 
         await say({
-          text: response.text,
+          text: response,
           thread_ts: event.ts,
         });
       } catch (error) {
@@ -154,7 +178,6 @@ class SlackBot {
       await ack();
 
       const text = command.text.trim();
-      const userId = command.user_id;
 
       if (!text) {
         await respond({
@@ -166,13 +189,12 @@ class SlackBot {
 • \`/ha 列出所有燈具\`
 • \`/ha 把客廳的燈打開\`
 • \`/ha 現在溫度幾度？\`
-• \`/ha status\` - 檢查 Home Assistant 連線
-• \`/ha clear\` - 清除對話歷史`,
+• \`/ha status\` - 檢查 Home Assistant 連線`,
         });
         return;
       }
 
-      // 特殊指令
+      // 特殊指令：status
       if (text.toLowerCase() === 'status') {
         try {
           const result = await this.haClient.checkConnection();
@@ -188,103 +210,20 @@ class SlackBot {
         return;
       }
 
-      if (text.toLowerCase() === 'clear') {
-        const context = this.conversations.get(userId);
-        if (context) {
-          context.agent.clearHistory();
-        }
-        await respond({
-          text: '✅ 對話歷史已清除',
-        });
-        return;
-      }
+      // 一般指令：使用 Claude CLI
+      console.log(`[Slack] Command from ${command.user_id}: ${text}`);
 
-      // 一般指令
       try {
-        const agent = this.getOrCreateAgent(userId);
-        const response = await agent.chat(text);
+        const response = await executeClaudePrompt(text);
 
         await respond({
-          text: response.text,
+          text: response,
         });
       } catch (error) {
         console.error('[Slack] Error processing command:', error);
         await respond({
           text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
         });
-      }
-    });
-
-    // /ha-schedule 指令
-    this.app.command('/ha-schedule', async ({ command, ack, respond }) => {
-      await ack();
-
-      const args = command.text.trim().split(' ');
-      const subCommand = args[0]?.toLowerCase();
-
-      switch (subCommand) {
-        case 'list':
-          const jobs = this.scheduler.getJobs();
-          if (jobs.length === 0) {
-            await respond({ text: '目前沒有排程任務' });
-          } else {
-            const jobList = jobs.map(j =>
-              `• *${j.name}* (${j.id})\n  排程：\`${j.cronExpression}\`\n  狀態：${j.enabled ? '✅ 啟用' : '⏸️ 停用'}\n  任務：${j.prompt}`
-            ).join('\n\n');
-            await respond({ text: `*排程任務列表*\n\n${jobList}` });
-          }
-          break;
-
-        case 'add':
-          // /ha-schedule add <id> <cron> <prompt>
-          // 簡化版：使用預設時間
-          await respond({
-            text: `*新增排程任務*
-
-使用方式：透過程式碼或設定檔新增排程任務。
-
-常用 cron 範例：
-• \`0 7 * * *\` - 每天早上 7 點
-• \`0 19 * * *\` - 每天晚上 7 點
-• \`*/30 * * * *\` - 每 30 分鐘
-• \`0 9 * * 1-5\` - 每個工作日早上 9 點`,
-          });
-          break;
-
-        case 'enable':
-          if (args[1]) {
-            this.scheduler.enableJob(args[1]);
-            await respond({ text: `✅ 已啟用排程：${args[1]}` });
-          }
-          break;
-
-        case 'disable':
-          if (args[1]) {
-            this.scheduler.disableJob(args[1]);
-            await respond({ text: `⏸️ 已停用排程：${args[1]}` });
-          }
-          break;
-
-        case 'run':
-          if (args[1]) {
-            try {
-              const result = await this.scheduler.executeJob(args[1]);
-              await respond({ text: `執行結果：\n${result}` });
-            } catch (error) {
-              await respond({ text: `❌ 執行失敗：${error instanceof Error ? error.message : '未知錯誤'}` });
-            }
-          }
-          break;
-
-        default:
-          await respond({
-            text: `*排程指令說明*
-
-• \`/ha-schedule list\` - 列出所有排程
-• \`/ha-schedule enable <id>\` - 啟用排程
-• \`/ha-schedule disable <id>\` - 停用排程
-• \`/ha-schedule run <id>\` - 立即執行排程`,
-          });
       }
     });
   }
@@ -308,29 +247,6 @@ class SlackBot {
     }
   }
 
-  /**
-   * 載入預設排程
-   */
-  loadDefaultSchedules(): void {
-    // 範例：每天晚上 7 點報告溫濕度
-    this.scheduler.addJob({
-      id: 'daily-climate-report',
-      name: '每日氣候報告',
-      cronExpression: CronPresets.everyDay(19, 0),
-      prompt: '請告訴我目前家中的溫度和濕度狀況',
-      enabled: false, // 預設停用，使用者可自行啟用
-    });
-
-    // 範例：每天早上 7 點檢查門窗
-    this.scheduler.addJob({
-      id: 'morning-security-check',
-      name: '早晨安全檢查',
-      cronExpression: CronPresets.everyDay(7, 0),
-      prompt: '請檢查家中所有門窗感測器的狀態，如果有異常請通知我',
-      enabled: false,
-    });
-  }
-
   async start(): Promise<void> {
     // 自動偵測 Home Assistant 連線
     try {
@@ -341,16 +257,11 @@ class SlackBot {
       console.error('  Bot 仍會啟動，但 HA 相關功能可能無法使用');
     }
 
-    // 載入預設排程
-    this.loadDefaultSchedules();
-    this.scheduler.startAll();
-
     await this.app.start();
     console.log('⚡️ Slack Bot 已啟動！');
   }
 
   async stop(): Promise<void> {
-    this.scheduler.stopAll();
     await this.app.stop();
   }
 }

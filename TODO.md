@@ -84,6 +84,28 @@ pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler  # PM2
 
 ---
 
+## ✅ 已完成：統一 Claude CLI 架構
+
+### ✅ 11. 所有介面改用 Claude CLI
+將所有介面統一改用 `claude --print` 呼叫，不再直接使用 Anthropic API：
+
+- **CLI** (`cli.ts`) - 改用 Claude CLI
+- **Slack Bot** (`slack-bot.ts`) - 改用 Claude CLI
+- **Scheduler** (`scheduler-daemon.ts`) - 已使用 Claude CLI
+
+架構變更：
+```
+Before: 介面 → ClaudeAgent → Anthropic API → haTools
+After:  介面 → claude CLI → MCP Server → HAClient
+```
+
+好處：
+- 統一架構，維護更簡單
+- 不再需要 `ANTHROPIC_API_KEY` 環境變數
+- Claude CLI 自動處理 MCP Server 連線
+
+---
+
 ## 後續開發建議
 
 ### 功能增強

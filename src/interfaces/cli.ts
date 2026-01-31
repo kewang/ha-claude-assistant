@@ -1,8 +1,14 @@
 #!/usr/bin/env node
+/**
+ * CLI 互動介面
+ *
+ * 透過 Claude CLI 處理使用者指令，與 Slack Bot 和 scheduler-daemon 保持一致的架構。
+ */
+
 import { createInterface } from 'readline';
+import { spawn } from 'child_process';
 import { config } from 'dotenv';
 import { HAClient } from '../core/ha-client.js';
-import { ClaudeAgent } from '../core/claude-agent.js';
 
 config();
 
@@ -19,7 +25,6 @@ const WELCOME_MESSAGE = `
 const HELP_MESSAGE = `
 可用指令：
   /help     - 顯示此說明
-  /clear    - 清除對話歷史
   /status   - 檢查 Home Assistant 連線狀態
   /quit     - 離開程式
 
@@ -32,15 +37,64 @@ const HELP_MESSAGE = `
   "把冷氣設定到 26 度"
 `;
 
+/**
+ * 執行 Claude CLI
+ */
+async function executeClaudePrompt(prompt: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const claudePath = `${process.env.HOME}/.local/bin/claude`;
+
+    const child = spawn(claudePath, ['--print', prompt], {
+      env: {
+        ...process.env,
+        PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+      reject(new Error('Claude 執行超時（2 分鐘）'));
+    }, 120000);
+
+    child.on('close', (code) => {
+      clearTimeout(timeout);
+
+      if (code === 0) {
+        resolve(stdout.trim());
+      } else {
+        if (stderr) {
+          console.error('[CLI] Claude stderr:', stderr);
+        }
+        reject(new Error(`Claude 執行失敗 (exit code: ${code})`));
+      }
+    });
+
+    child.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(new Error(`Claude 執行錯誤: ${error.message}`));
+    });
+  });
+}
+
 class CLI {
-  private agent: ClaudeAgent;
   private haClient: HAClient;
   private rl: ReturnType<typeof createInterface>;
   private isProcessing = false;
 
   constructor() {
     this.haClient = new HAClient();
-    this.agent = new ClaudeAgent(this.haClient);
     this.rl = createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -53,11 +107,6 @@ class CLI {
     switch (command) {
       case '/help':
         console.log(HELP_MESSAGE);
-        return true;
-
-      case '/clear':
-        this.agent.clearHistory();
-        console.log('✓ 對話歷史已清除\n');
         return true;
 
       case '/status':
@@ -107,18 +156,8 @@ class CLI {
     console.log('\n思考中...\n');
 
     try {
-      const response = await this.agent.chat(trimmedInput);
-
-      // 顯示工具呼叫（可選，用於除錯）
-      if (response.toolCalls && process.env.DEBUG === 'true') {
-        console.log('--- Tool Calls ---');
-        for (const call of response.toolCalls) {
-          console.log(`[${call.name}]`, JSON.stringify(call.input, null, 2));
-        }
-        console.log('------------------\n');
-      }
-
-      console.log(`🤖 ${response.text}\n`);
+      const response = await executeClaudePrompt(trimmedInput);
+      console.log(`🤖 ${response}\n`);
     } catch (error) {
       console.error(`\n❌ 錯誤: ${error instanceof Error ? error.message : error}\n`);
     } finally {
@@ -163,13 +202,11 @@ class CLI {
 
 // 單次指令模式
 async function singleCommand(command: string): Promise<void> {
-  const haClient = new HAClient();
-  const agent = new ClaudeAgent(haClient);
+  console.log('處理中...\n');
 
   try {
-    console.log('處理中...\n');
-    const response = await agent.query(command);
-    console.log(response.text);
+    const response = await executeClaudePrompt(command);
+    console.log(response);
   } catch (error) {
     console.error(`錯誤: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
