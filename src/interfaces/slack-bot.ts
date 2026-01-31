@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { App, LogLevel } from '@slack/bolt';
+import bolt from '@slack/bolt';
+const { App, LogLevel } = bolt;
 import { config } from 'dotenv';
 import { HAClient } from '../core/ha-client.js';
 import { ClaudeAgent } from '../core/claude-agent.js';
@@ -13,7 +14,7 @@ interface ConversationContext {
 }
 
 class SlackBot {
-  private app: App;
+  private app: bolt.App;
   private haClient: HAClient;
   private scheduler: Scheduler;
   private conversations: Map<string, ConversationContext> = new Map();

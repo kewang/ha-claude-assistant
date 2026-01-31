@@ -1,77 +1,46 @@
 # 接下來的開發任務
 
-## 優先：環境設定與驗證
+## ✅ 已完成：環境設定與驗證
 
-### 1. 設定環境變數
+### ✅ 1. 設定環境變數
+已完成 `.env` 設定。
+
+### ✅ 2. 測試 Home Assistant 連線
+`npm run test:ha` 測試通過。
+
+### ✅ 3. 測試 CLI 互動
+`npm run cli` 測試通過，可正常控制燈具。
+
+### ✅ 4. 測試 MCP Server（整合 Claude Code）
+使用 `claude mcp add` 設定完成：
 ```bash
-cp .env.example .env
+claude mcp add --transport stdio ha-assistant \
+  --env HA_URL=http://homeassistant.local:8123 \
+  --env HA_TOKEN=<your-token> \
+  -- node /home/kewang/git/ha-claude-assistant/dist/interfaces/mcp-server.js
 ```
-
-編輯 `.env` 填入：
-- `HA_URL` - Home Assistant 的 URL（如 `http://192.168.1.100:8123`）
-- `HA_TOKEN` - HA 長期存取權杖（在 HA 個人設定頁面建立）
-- `ANTHROPIC_API_KEY` - Anthropic API Key
-
-### 2. 測試 Home Assistant 連線
-```bash
-npm run test:ha
-```
-確認能成功連線並列出實體。
-
-### 3. 測試 CLI 互動
-```bash
-npm run cli
-```
-測試指令：
-- 「列出所有燈具」
-- 「客廳燈的狀態」
-- 「把某個燈打開」（用實際存在的 entity_id）
-
-### 4. 測試 MCP Server（整合 Claude Code）
-
-編輯 `~/.claude/claude_desktop_config.json`，加入：
-```json
-{
-  "mcpServers": {
-    "ha-assistant": {
-      "command": "node",
-      "args": ["/home/kewang/git/ha-claude-assistant/dist/interfaces/mcp-server.js"],
-      "env": {
-        "HA_URL": "你的 HA URL",
-        "HA_TOKEN": "你的 HA Token"
-      }
-    }
-  }
-}
-```
-
-重啟 Claude Code 後測試：
-- 在 Claude Code 問「列出家裡的燈具」
-- 測試控制設備
+測試通過，可在 Claude Code 中控制 Home Assistant。
 
 ---
 
-## 選用：Slack Bot 設定
+## ✅ 已完成：Slack Bot 設定
 
-### 5. 建立 Slack App
-1. 到 https://api.slack.com/apps 建立 App
-2. 啟用 Socket Mode
-3. 設定 Bot Token Scopes: `app_mentions:read`, `chat:write`, `commands`, `im:history`, `im:read`, `im:write`
-4. 建立 Slash Commands: `/ha`, `/ha-schedule`
-5. 安裝到 Workspace
+### ✅ 5. 建立 Slack App
+已完成 Slack App 建立，包含：
+- Socket Mode 啟用
+- Bot Token Scopes 設定
+- Event Subscriptions（app_mention, message.im）
+- Slash Commands：`/ha`, `/ha-schedule`
+- App Home > Messages Tab 啟用
 
-### 6. 設定 Slack 環境變數
-在 `.env` 加入：
-```
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_APP_TOKEN=xapp-...
-SLACK_DEFAULT_CHANNEL=C...  # 用於排程通知的頻道
-```
+### ✅ 6. 設定 Slack 環境變數
+已在 `.env` 設定 `SLACK_BOT_TOKEN` 和 `SLACK_APP_TOKEN`。
 
-### 7. 啟動 Slack Bot
-```bash
-npm run slack
-```
+### ✅ 7. 測試 Slack Bot
+`npm run slack` 啟動成功，以下功能測試通過：
+- DM 私訊對話
+- @mention 在頻道中呼叫
+- `/ha` Slash 指令
 
 ---
 
