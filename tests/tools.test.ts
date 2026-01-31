@@ -1,14 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { haTools, listEntitiesTool, getStateTool, callServiceTool } from '../src/tools/index.js';
+import { haTools, listEntitiesTool, getStateTool, callServiceTool, manageScheduleTool } from '../src/tools/index.js';
 
 describe('Tools', () => {
   describe('haTools array', () => {
     it('should contain all tools', () => {
-      expect(haTools).toHaveLength(3);
+      expect(haTools).toHaveLength(4);
       expect(haTools.map(t => t.name)).toEqual([
         'list_entities',
         'get_state',
         'call_service',
+        'manage_schedule',
       ]);
     });
   });
@@ -52,6 +53,21 @@ describe('Tools', () => {
     it('should require domain and service', () => {
       expect(callServiceTool.input_schema.required).toContain('domain');
       expect(callServiceTool.input_schema.required).toContain('service');
+    });
+  });
+
+  describe('manageScheduleTool', () => {
+    it('should have correct name', () => {
+      expect(manageScheduleTool.name).toBe('manage_schedule');
+    });
+
+    it('should require action', () => {
+      expect(manageScheduleTool.input_schema.required).toContain('action');
+    });
+
+    it('should have action enum', () => {
+      const properties = manageScheduleTool.input_schema.properties as Record<string, { enum?: string[] }>;
+      expect(properties.action.enum).toEqual(['create', 'list', 'enable', 'disable', 'delete']);
     });
   });
 });

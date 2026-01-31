@@ -14,6 +14,7 @@
     "cli": "node dist/interfaces/cli.js",
     "mcp": "node dist/interfaces/mcp-server.js",
     "slack": "node dist/interfaces/slack-bot.js",
+    "scheduler": "node dist/interfaces/scheduler-daemon.js",
     "test": "vitest",
     "test:ha": "node dist/test-ha.js"
   },

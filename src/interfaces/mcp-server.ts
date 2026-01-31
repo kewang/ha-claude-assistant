@@ -10,6 +10,7 @@ import { HAClient } from '../core/ha-client.js';
 import { executeListEntities, type ListEntitiesInput } from '../tools/list-entities.js';
 import { executeGetState, type GetStateInput } from '../tools/get-states.js';
 import { executeCallService, type CallServiceInput } from '../tools/call-service.js';
+import { executeManageSchedule, type ManageScheduleInput } from '../tools/manage-schedule.js';
 
 config();
 
@@ -127,6 +128,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['domain', 'service'],
         },
       },
+      {
+        name: 'manage_schedule',
+        description: `管理排程任務。可以新增、列出、啟用、停用或刪除排程。
+
+排程會由獨立的背景服務執行，執行時會使用 Claude 處理 prompt，並將結果發送到 Slack。
+
+常用 cron 表達式範例：
+- "0 7 * * *" - 每天早上 7 點
+- "0 19 * * *" - 每天晚上 7 點
+- "0 8 * * 1-5" - 週一到週五早上 8 點
+- "*/30 * * * *" - 每 30 分鐘
+- "0 */2 * * *" - 每 2 小時`,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['create', 'list', 'enable', 'disable', 'delete'],
+              description: '操作類型：create（新增）、list（列出）、enable（啟用）、disable（停用）、delete（刪除）',
+            },
+            id: {
+              type: 'string',
+              description: '排程 ID（enable、disable、delete 時需要）',
+            },
+            name: {
+              type: 'string',
+              description: '排程名稱（create 時需要），也可用於搜尋排程',
+            },
+            cron: {
+              type: 'string',
+              description: 'Cron 表達式（create 時需要），如 "0 19 * * *" 表示每天晚上 7 點',
+            },
+            prompt: {
+              type: 'string',
+              description: '執行時的提示（create 時需要），例如「報告目前家裡的溫濕度」',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -147,6 +188,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'call_service':
         result = await executeCallService(haClient, args as unknown as CallServiceInput);
+        break;
+      case 'manage_schedule':
+        result = await executeManageSchedule(args as unknown as ManageScheduleInput);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

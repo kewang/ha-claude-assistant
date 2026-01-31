@@ -55,6 +55,35 @@ claude mcp add --transport stdio ha-assistant \
 
 ---
 
+## ✅ 已完成：排程管理功能
+
+### ✅ 9. manage_schedule Tool
+新增 `manage_schedule` tool，支援：
+- `create` - 建立排程
+- `list` - 列出所有排程
+- `enable` / `disable` - 啟用/停用排程
+- `delete` - 刪除排程
+
+可透過自然語言管理排程，例如：
+- 「幫我每天早上八點報告溫濕度」
+- 「列出所有排程」
+- 「把溫濕度報告停用」
+
+### ✅ 10. 獨立排程服務 (scheduler-daemon)
+- 背景執行排程任務
+- 監控 `data/schedules.json` 自動重載
+- 執行時呼叫 `claude --print` 處理 prompt
+- 結果發送到 Slack 通知
+
+啟動方式：
+```bash
+npm run scheduler          # 前景執行
+nohup npm run scheduler &  # 背景執行
+pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler  # PM2
+```
+
+---
+
 ## 後續開發建議
 
 ### 功能增強
@@ -69,7 +98,7 @@ claude mcp add --transport stdio ha-assistant \
 ### 部署
 - [ ] 建立 Dockerfile
 - [ ] systemd service 設定（常駐執行）
-- [ ] PM2 設定
+- [x] PM2 設定（scheduler-daemon 可用 PM2 管理）
 
 ---
 
@@ -83,7 +112,8 @@ npm run build
 npm test
 
 # 啟動各介面
-npm run cli      # CLI
-npm run mcp      # MCP Server
-npm run slack    # Slack Bot
+npm run cli        # CLI
+npm run mcp        # MCP Server
+npm run slack      # Slack Bot
+npm run scheduler  # 排程服務
 ```
