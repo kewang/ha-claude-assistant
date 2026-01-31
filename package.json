@@ -1,0 +1,36 @@
+{
+  "name": "ha-claude-assistant",
+  "version": "1.0.0",
+  "description": "Claude AI 驅動的智慧家庭助理，整合 Home Assistant",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "ha-claude": "dist/interfaces/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "cli": "node dist/interfaces/cli.js",
+    "mcp": "node dist/interfaces/mcp-server.js",
+    "slack": "node dist/interfaces/slack-bot.js",
+    "test": "vitest",
+    "test:ha": "node dist/test-ha.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@slack/bolt": "^3.17.0",
+    "node-cron": "^3.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@types/node-cron": "^3.0.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

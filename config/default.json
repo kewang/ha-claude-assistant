@@ -1,0 +1,16 @@
+{
+  "homeAssistant": {
+    "timeout": 10000,
+    "retryAttempts": 3
+  },
+  "claude": {
+    "model": "claude-sonnet-4-20250514",
+    "maxTokens": 4096
+  },
+  "scheduler": {
+    "timezone": "Asia/Taipei"
+  },
+  "slack": {
+    "socketMode": true
+  }
+}
