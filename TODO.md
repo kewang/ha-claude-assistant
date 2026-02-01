@@ -71,7 +71,7 @@ claude mcp add --transport stdio ha-assistant \
 
 ### ✅ 10. 獨立排程服務 (scheduler-daemon)
 - 背景執行排程任務
-- 監控 `data/schedules.json` 自動重載
+- 監控 `data/schedules.json` 自動重載（含 debounce 機制）
 - 執行時呼叫 `claude --print` 處理 prompt
 - 結果發送到 Slack 通知
 
@@ -82,11 +82,18 @@ nohup npm run scheduler &  # 背景執行
 pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler  # PM2
 ```
 
+### ✅ 11. Slack Bot / Scheduler 穩定性改進
+- 使用 `--permission-mode acceptEdits` 允許 MCP 工具寫入檔案
+- 加入工作目錄設定確保 Claude CLI 正確執行
+- ScheduleStore 加入 JSON 解析錯誤處理，避免寫入中途崩潰
+- ScheduleStore 加入 500ms debounce，避免頻繁觸發 reload
+- 改善 timeout 診斷日誌
+
 ---
 
 ## ✅ 已完成：統一 Claude CLI 架構
 
-### ✅ 11. 所有介面改用 Claude CLI
+### ✅ 12. 所有介面改用 Claude CLI
 將所有介面統一改用 `claude --print` 呼叫，不再直接使用 Anthropic API：
 
 - **CLI** (`cli.ts`) - 改用 Claude CLI

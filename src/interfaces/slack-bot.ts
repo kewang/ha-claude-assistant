@@ -14,20 +14,26 @@ import { HAClient } from '../core/ha-client.js';
 
 config();
 
+// 預設 timeout 1 分鐘
+const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
+
 /**
  * 執行 Claude CLI
  */
 async function executeClaudePrompt(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const claudePath = `${process.env.HOME}/.local/bin/claude`;
+    const startTime = Date.now();
 
-    console.log(`[Slack] Running claude --print "${prompt.substring(0, 50)}..."`);
+    console.log(`[Slack] Running claude --print "${prompt.substring(0, 80)}..."`);
 
-    const child = spawn(claudePath, ['--print', prompt], {
+    // 使用 acceptEdits 模式允許 MCP 工具寫入檔案（如排程設定）
+    const child = spawn(claudePath, ['--print', '--permission-mode', 'acceptEdits', prompt], {
       env: {
         ...process.env,
         PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
       },
+      cwd: process.cwd(), // 確保使用正確的工作目錄
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -40,12 +46,16 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
 
     child.stderr.on('data', (data) => {
       stderr += data.toString();
+      // 即時輸出 stderr 以便追蹤進度
+      console.error(`[Slack] Claude stderr: ${data.toString().trim()}`);
     });
 
     const timeout = setTimeout(() => {
+      const elapsed = Math.round((Date.now() - startTime) / 1000);
+      console.error(`[Slack] Timeout after ${elapsed}s, stdout length: ${stdout.length}, stderr length: ${stderr.length}`);
       child.kill('SIGTERM');
-      reject(new Error('Claude 執行超時（2 分鐘）'));
-    }, 120000);
+      reject(new Error(`Claude 執行超時（${Math.round(CLAUDE_TIMEOUT_MS / 60000)} 分鐘）`));
+    }, CLAUDE_TIMEOUT_MS);
 
     child.on('close', (code) => {
       clearTimeout(timeout);

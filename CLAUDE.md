@@ -71,7 +71,7 @@ config/default.json       # 預設設定
 ```
 CLI / Slack Bot / Scheduler
          ↓
-   claude --print
+   claude --print --permission-mode acceptEdits
          ↓
     MCP Server
          ↓
@@ -83,6 +83,10 @@ CLI / Slack Bot / Scheduler
 前置需求：
 - `claude` CLI 已安裝並登入（`~/.local/bin/claude`）
 - MCP Server 已設定在 Claude Code 的 settings
+
+注意事項：
+- 使用 `--permission-mode acceptEdits` 允許 MCP 工具寫入檔案（如排程設定）
+- ScheduleStore 有 500ms debounce 機制，避免檔案寫入時頻繁觸發 reload
 
 ## 環境變數
 

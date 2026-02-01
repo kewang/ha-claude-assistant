@@ -24,6 +24,7 @@ export class ScheduleStore {
   private schedules: Map<string, StoredSchedule> = new Map();
   private watchers: Array<() => void> = [];
   private watchController: AbortController | null = null;
+  private reloadTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(filePath?: string) {
     this.filePath = filePath || DEFAULT_DATA_PATH;
@@ -58,6 +59,13 @@ export class ScheduleStore {
       }
 
       const data = await readFile(this.filePath, 'utf-8');
+
+      // 跳過空檔案（可能正在寫入中）
+      if (!data.trim()) {
+        console.warn('[ScheduleStore] 檔案為空，跳過載入');
+        return;
+      }
+
       const schedules: StoredSchedule[] = JSON.parse(data);
 
       this.schedules.clear();
@@ -67,6 +75,9 @@ export class ScheduleStore {
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         await this.save();
+      } else if (error instanceof SyntaxError) {
+        // JSON 解析錯誤，可能是檔案正在寫入中，稍後重試
+        console.warn('[ScheduleStore] JSON 解析錯誤，可能正在寫入中，保留現有資料');
       } else {
         throw error;
       }
@@ -187,7 +198,7 @@ export class ScheduleStore {
   }
 
   /**
-   * 監控檔案變更
+   * 監控檔案變更（含 debounce 避免寫入中途觸發）
    */
   async startWatching(onChange: () => void): Promise<void> {
     this.watchers.push(onChange);
@@ -205,20 +216,30 @@ export class ScheduleStore {
         try {
           for await (const event of watcher) {
             if (event.eventType === 'change') {
-              await this.load();
-              for (const callback of this.watchers) {
-                callback();
+              // Debounce: 等待 500ms 確保檔案寫入完成
+              if (this.reloadTimeout) {
+                clearTimeout(this.reloadTimeout);
               }
+              this.reloadTimeout = setTimeout(async () => {
+                try {
+                  await this.load();
+                  for (const callback of this.watchers) {
+                    callback();
+                  }
+                } catch (error) {
+                  console.error('[ScheduleStore] Reload error:', error);
+                }
+              }, 500);
             }
           }
         } catch (error) {
           if ((error as Error).name !== 'AbortError') {
-            console.error('Watch error:', error);
+            console.error('[ScheduleStore] Watch error:', error);
           }
         }
       })();
     } catch (error) {
-      console.error('Failed to start watching:', error);
+      console.error('[ScheduleStore] Failed to start watching:', error);
     }
   }
 
@@ -226,6 +247,10 @@ export class ScheduleStore {
    * 停止監控
    */
   stopWatching(): void {
+    if (this.reloadTimeout) {
+      clearTimeout(this.reloadTimeout);
+      this.reloadTimeout = null;
+    }
     if (this.watchController) {
       this.watchController.abort();
       this.watchController = null;
