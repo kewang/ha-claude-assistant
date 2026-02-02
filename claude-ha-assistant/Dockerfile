@@ -18,7 +18,7 @@ RUN npm ci --omit=dev
 COPY dist/ ./dist/
 
 # 複製啟動腳本
-COPY ha-addon/ha-claude-assistant/run.sh /run.sh
+COPY claude-ha-assistant/run.sh /run.sh
 RUN chmod +x /run.sh
 
 # 建立資料目錄

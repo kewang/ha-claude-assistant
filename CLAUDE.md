@@ -61,16 +61,15 @@ src/
 data/
 └── schedules.json        # 排程設定檔
 
-ha-addon/                 # Home Assistant Add-on
-├── repository.yaml       # Add-on 倉庫設定
-└── ha-claude-assistant/
-    ├── config.yaml       # Add-on 設定
-    ├── build.yaml        # 建置設定
-    ├── Dockerfile
-    ├── run.sh            # 啟動腳本
-    ├── DOCS.md           # 使用說明
-    └── translations/
-        └── en.yaml
+repository.yaml           # Home Assistant Add-on 倉庫設定
+claude-ha-assistant/      # Home Assistant Add-on
+├── config.yaml           # Add-on 設定
+├── build.yaml            # 建置設定
+├── Dockerfile
+├── run.sh                # 啟動腳本
+├── DOCS.md               # 使用說明
+└── translations/
+    └── en.yaml
 
 tests/                    # Vitest 測試
 config/default.json       # 預設設定
@@ -294,7 +293,7 @@ HA Add-on 容器
 
 ### Add-on 安裝
 
-詳見 `ha-addon/ha-claude-assistant/DOCS.md`。
+詳見 `claude-ha-assistant/DOCS.md`。
 
 ### Add-on 開發
 

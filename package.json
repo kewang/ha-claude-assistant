@@ -17,8 +17,8 @@
     "scheduler": "node dist/interfaces/scheduler-daemon.js",
     "test": "vitest",
     "test:ha": "node dist/test-ha.js",
-    "addon:build": "npm run build && echo 'Add-on build ready. Use docker build in ha-addon/ha-claude-assistant/'",
-    "addon:docker": "docker build -t claude-ha-assistant -f ha-addon/ha-claude-assistant/Dockerfile ."
+    "addon:build": "npm run build && echo 'Add-on build ready. Use docker build in claude-ha-assistant/'",
+    "addon:docker": "docker build -t claude-ha-assistant -f claude-ha-assistant/Dockerfile ."
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",

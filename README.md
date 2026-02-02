@@ -142,12 +142,11 @@ ha-claude-assistant/
 │   │   ├── manage-schedule.ts
 │   │   └── index.ts
 │   └── index.ts
-├── ha-addon/                   # Home Assistant Add-on
-│   ├── repository.yaml
-│   └── ha-claude-assistant/
-│       ├── config.yaml
-│       ├── Dockerfile
-│       └── ...
+├── repository.yaml             # HA Add-on 倉庫設定
+├── claude-ha-assistant/        # Home Assistant Add-on
+│   ├── config.yaml
+│   ├── Dockerfile
+│   └── ...
 ├── tests/                      # 測試檔案
 ├── data/                       # 排程資料
 ├── .env.example                # 環境變數範例
