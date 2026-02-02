@@ -1,6 +1,9 @@
 build_from:
   amd64: node:20-alpine
   aarch64: node:20-alpine
+  armv7: node:20-alpine
+  armhf: node:20-alpine
+  i386: node:20-alpine
 labels:
   org.opencontainers.image.title: Claude HA Assistant
   org.opencontainers.image.description: Claude AI 驅動的智慧家庭助理

@@ -6,6 +6,9 @@ url: https://github.com/kewang/ha-claude-assistant
 arch:
   - amd64
   - aarch64
+  - armv7
+  - armhf
+  - i386
 homeassistant_api: true
 hassio_api: true
 init: false
@@ -25,5 +28,3 @@ schema:
   slack_default_channel: str
   timezone: str?
   log_level: list(debug|info|warn|error)?
-ports_description:
-  # No external ports needed - uses Slack Socket Mode
