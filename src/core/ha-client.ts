@@ -1,4 +1,5 @@
 import { config } from 'dotenv';
+import { isAddonEnvironment } from './env-detect.js';
 config();
 
 export interface HAState {
@@ -45,12 +46,26 @@ export class HAClient {
   private timeout: number;
   private retryAttempts: number;
   private isUsingExternal: boolean = false;
+  private isAddon: boolean = false;
 
   constructor(config?: Partial<HAClientConfig>) {
-    this.internalUrl = (config?.url || process.env.HA_URL || '').replace(/\/$/, '');
-    this.externalUrl = (config?.externalUrl || process.env.HA_URL_EXTERNAL || '').replace(/\/$/, '') || null;
-    this.baseUrl = this.internalUrl;
-    this.token = config?.token || process.env.HA_TOKEN || '';
+    // 偵測是否在 Add-on 環境
+    this.isAddon = isAddonEnvironment();
+
+    if (this.isAddon) {
+      // Add-on 環境：使用 Supervisor API
+      this.internalUrl = 'http://supervisor/core';
+      this.externalUrl = null;
+      this.baseUrl = this.internalUrl;
+      this.token = process.env.SUPERVISOR_TOKEN || '';
+    } else {
+      // 一般環境：使用 HA_URL
+      this.internalUrl = (config?.url || process.env.HA_URL || '').replace(/\/$/, '');
+      this.externalUrl = (config?.externalUrl || process.env.HA_URL_EXTERNAL || '').replace(/\/$/, '') || null;
+      this.baseUrl = this.internalUrl;
+      this.token = config?.token || process.env.HA_TOKEN || '';
+    }
+
     this.timeout = config?.timeout || 10000;
     this.retryAttempts = config?.retryAttempts || 3;
 
@@ -58,8 +73,16 @@ export class HAClient {
       throw new Error('Home Assistant URL is required. Set HA_URL environment variable.');
     }
     if (!this.token) {
-      throw new Error('Home Assistant token is required. Set HA_TOKEN environment variable.');
+      const envVar = this.isAddon ? 'SUPERVISOR_TOKEN' : 'HA_TOKEN';
+      throw new Error(`Home Assistant token is required. Set ${envVar} environment variable.`);
     }
+  }
+
+  /**
+   * 是否在 Add-on 環境執行
+   */
+  isAddonEnvironment(): boolean {
+    return this.isAddon;
   }
 
   /**

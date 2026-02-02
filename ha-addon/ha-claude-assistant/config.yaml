@@ -1,0 +1,29 @@
+name: Claude HA Assistant
+version: "1.0.0"
+slug: claude_ha_assistant
+description: Claude AI 驅動的智慧家庭助理，整合 Home Assistant
+url: https://github.com/kewang/ha-claude-assistant
+arch:
+  - amd64
+  - aarch64
+homeassistant_api: true
+hassio_api: true
+init: false
+startup: application
+boot: auto
+map:
+  - addon_config:rw
+options:
+  slack_bot_token: ""
+  slack_app_token: ""
+  slack_default_channel: ""
+  timezone: "Asia/Taipei"
+  log_level: "info"
+schema:
+  slack_bot_token: str
+  slack_app_token: str
+  slack_default_channel: str
+  timezone: str?
+  log_level: list(debug|info|warn|error)?
+ports_description:
+  # No external ports needed - uses Slack Socket Mode

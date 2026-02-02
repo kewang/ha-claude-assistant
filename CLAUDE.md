@@ -42,7 +42,8 @@ npm run scheduler    # 排程服務（背景執行）
 src/
 ├── core/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
-│   └── schedule-store.ts # 排程持久化儲存
+│   ├── schedule-store.ts # 排程持久化儲存
+│   └── env-detect.ts     # 環境偵測（Add-on / 一般環境）
 ├── interfaces/
 │   ├── cli.ts            # CLI 互動介面（使用 Claude CLI）
 │   ├── mcp-server.ts     # MCP Server（stdio）
@@ -59,6 +60,17 @@ src/
 
 data/
 └── schedules.json        # 排程設定檔
+
+ha-addon/                 # Home Assistant Add-on
+├── repository.yaml       # Add-on 倉庫設定
+└── ha-claude-assistant/
+    ├── config.yaml       # Add-on 設定
+    ├── build.yaml        # 建置設定
+    ├── Dockerfile
+    ├── run.sh            # 啟動腳本
+    ├── DOCS.md           # 使用說明
+    └── translations/
+        └── en.yaml
 
 tests/                    # Vitest 測試
 config/default.json       # 預設設定
@@ -244,3 +256,53 @@ pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler
 - Slack Bot 使用 Socket Mode，不需要公開 endpoint
 - 排程使用 Asia/Taipei 時區
 - 排程服務需要 `claude` CLI 可用且已登入
+
+## Home Assistant Add-on
+
+專案支援作為 Home Assistant Add-on 安裝，提供更簡便的部署方式。
+
+### Add-on 架構
+
+```
+HA Add-on 容器
+├── Claude CLI（用戶手動安裝並登入）
+├── MCP Server（stdio，給 Claude CLI 用）
+├── Slack Bot（主程式）
+├── Scheduler（背景程式）
+└── HAClient → http://supervisor/core（Supervisor API）
+```
+
+### 環境偵測
+
+程式會自動偵測執行環境：
+
+- **Add-on 環境**：偵測到 `SUPERVISOR_TOKEN` 環境變數
+  - 使用 `http://supervisor/core` 作為 HA API
+  - 排程資料存在 `/data/schedules/schedules.json`
+  - Claude 設定存在 `/data/claude/`
+
+- **一般環境**：使用傳統的 `HA_URL` 和 `HA_TOKEN`
+
+### 相關環境變數
+
+| 變數 | Add-on 環境 | 一般環境 |
+|------|------------|---------|
+| `SUPERVISOR_TOKEN` | 自動提供 | - |
+| `SCHEDULE_DATA_PATH` | `/data/schedules/schedules.json` | `data/schedules.json` |
+| `CLAUDE_PATH` | `claude` | `~/.local/bin/claude` |
+| `CLAUDE_CONFIG_DIR` | `/data/claude` | - |
+
+### Add-on 安裝
+
+詳見 `ha-addon/ha-claude-assistant/DOCS.md`。
+
+### Add-on 開發
+
+```bash
+# 建置專案
+npm run addon:build
+
+# 本地 Docker 測試
+npm run addon:docker
+docker run -it claude-ha-assistant
+```

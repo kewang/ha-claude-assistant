@@ -1,0 +1,25 @@
+configuration:
+  slack_bot_token:
+    name: Slack Bot Token
+    description: >-
+      Your Slack Bot Token (starts with xoxb-).
+      Get it from https://api.slack.com/apps
+  slack_app_token:
+    name: Slack App Token
+    description: >-
+      Your Slack App Token for Socket Mode (starts with xapp-).
+      Enable Socket Mode in your Slack app settings.
+  slack_default_channel:
+    name: Default Slack Channel
+    description: >-
+      The default channel ID for notifications (starts with C).
+      You can find this in the channel details in Slack.
+  timezone:
+    name: Timezone
+    description: >-
+      Timezone for scheduled tasks (default: Asia/Taipei).
+      Use IANA timezone format (e.g., America/New_York, Europe/London).
+  log_level:
+    name: Log Level
+    description: >-
+      Logging verbosity level.

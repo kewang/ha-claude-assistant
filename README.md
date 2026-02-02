@@ -8,6 +8,22 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 - 🔌 **多種介面** - CLI、MCP Server（Claude Code）、Slack Bot
 - ⏰ **排程任務** - 定時執行指令並主動通知
 - 🏠 **完整 HA 整合** - 支援燈光、開關、感測器、空調等設備
+- 📦 **Home Assistant Add-on** - 可作為 Add-on 安裝，簡化部署
+
+## 安裝方式
+
+有兩種安裝方式：
+
+### 方式一：Home Assistant Add-on（推薦）
+
+1. 在 Home Assistant 中，前往「設定 > 附加元件 > 附加元件商店」
+2. 點擊右上角選單，選擇「倉庫」
+3. 加入此倉庫：`https://github.com/kewang/ha-claude-assistant`
+4. 安裝「Claude HA Assistant」Add-on
+5. 設定 Slack tokens
+6. 進入容器安裝 Claude Code 並登入（詳見 Add-on 文件）
+
+### 方式二：手動安裝（開發用）
 
 ## 快速開始
 
@@ -29,16 +45,16 @@ cp .env.example .env
 ```env
 # Home Assistant 設定
 HA_URL=http://your-ha-ip:8123
+HA_URL_EXTERNAL=https://your-ha.duckdns.org:8123  # 選用，外網 URL
 HA_TOKEN=your_long_lived_access_token
-
-# Anthropic API
-ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # Slack（選用）
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_APP_TOKEN=xapp-your-app-token
 SLACK_DEFAULT_CHANNEL=C0123456789
 ```
+
+> 注意：設定 `HA_URL_EXTERNAL` 後，系統會自動偵測連線，優先使用內網。
 
 ### 3. 建置
 
@@ -111,23 +127,30 @@ npm run slack
 ha-claude-assistant/
 ├── src/
 │   ├── core/
-│   │   ├── ha-client.ts      # Home Assistant API 封裝
-│   │   ├── claude-agent.ts   # Claude AI Agent
-│   │   └── scheduler.ts      # 排程器
+│   │   ├── ha-client.ts        # Home Assistant API 封裝
+│   │   ├── schedule-store.ts   # 排程持久化儲存
+│   │   └── env-detect.ts       # 環境偵測（Add-on / 一般）
 │   ├── interfaces/
-│   │   ├── mcp-server.ts     # MCP Server
-│   │   ├── cli.ts            # CLI 介面
-│   │   └── slack-bot.ts      # Slack Bot
-│   ├── tools/                # Claude tools 定義
+│   │   ├── mcp-server.ts       # MCP Server
+│   │   ├── cli.ts              # CLI 介面
+│   │   ├── slack-bot.ts        # Slack Bot
+│   │   └── scheduler-daemon.ts # 排程服務
+│   ├── tools/                  # Claude tools 定義
 │   │   ├── list-entities.ts
 │   │   ├── get-states.ts
 │   │   ├── call-service.ts
+│   │   ├── manage-schedule.ts
 │   │   └── index.ts
 │   └── index.ts
-├── tests/                    # 測試檔案
-├── config/
-│   └── default.json          # 預設設定
-├── .env.example              # 環境變數範例
+├── ha-addon/                   # Home Assistant Add-on
+│   ├── repository.yaml
+│   └── ha-claude-assistant/
+│       ├── config.yaml
+│       ├── Dockerfile
+│       └── ...
+├── tests/                      # 測試檔案
+├── data/                       # 排程資料
+├── .env.example                # 環境變數範例
 └── package.json
 ```
 
@@ -141,6 +164,9 @@ ha-claude-assistant/
 
 ### call_service
 呼叫 HA 服務控制設備（開關燈、調溫度等）。
+
+### manage_schedule
+管理排程任務，支援建立、列出、啟用、停用、刪除排程。
 
 ## 開發
 

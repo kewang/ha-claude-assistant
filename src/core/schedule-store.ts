@@ -2,6 +2,7 @@ import { readFile, writeFile, mkdir, watch } from 'fs/promises';
 import { existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
+import { detectEnvironment } from './env-detect.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +18,18 @@ export interface StoredSchedule {
 
 export type ScheduleInput = Omit<StoredSchedule, 'id' | 'createdAt' | 'updatedAt'>;
 
-const DEFAULT_DATA_PATH = join(__dirname, '../../data/schedules.json');
+/**
+ * 取得預設資料路徑
+ * Add-on 環境使用 /data/schedules/schedules.json
+ * 一般環境使用專案目錄下的 data/schedules.json
+ */
+function getDefaultDataPath(): string {
+  const env = detectEnvironment();
+  if (env.dataPath) {
+    return env.dataPath;
+  }
+  return join(__dirname, '../../data/schedules.json');
+}
 
 export class ScheduleStore {
   private filePath: string;
@@ -27,7 +39,7 @@ export class ScheduleStore {
   private reloadTimeout: ReturnType<typeof setTimeout> | null = null;
 
   constructor(filePath?: string) {
-    this.filePath = filePath || DEFAULT_DATA_PATH;
+    this.filePath = filePath || getDefaultDataPath();
   }
 
   /**

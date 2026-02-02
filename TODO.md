@@ -125,9 +125,37 @@ After:  介面 → claude CLI → MCP Server → HAClient
 - [ ] 錯誤追蹤與告警
 
 ### 部署
-- [ ] 建立 Dockerfile
+- [x] 建立 Dockerfile
+- [x] Home Assistant Add-on 支援
 - [ ] systemd service 設定（常駐執行）
 - [x] PM2 設定（scheduler-daemon 可用 PM2 管理）
+
+---
+
+## ✅ 已完成：Home Assistant Add-on
+
+### ✅ 13. Add-on 支援
+將專案封裝為 Home Assistant Add-on，方便其他用戶安裝：
+
+- **環境偵測** (`env-detect.ts`) - 自動判斷 Add-on 或一般環境
+- **Supervisor API 支援** - Add-on 環境自動使用 `http://supervisor/core`
+- **資料持久化** - 排程和 Claude 登入狀態存於 `/data/`
+- **Add-on 設定檔** - `ha-addon/` 目錄包含完整 Add-on 結構
+
+Add-on 架構：
+```
+HA Add-on 容器
+├── Claude CLI（用戶手動安裝並登入）
+├── Slack Bot（主程式）
+├── Scheduler（背景程式）
+└── HAClient → Supervisor API
+```
+
+用戶安裝步驟：
+1. 在 HA 安裝 Add-on
+2. 設定 Slack tokens
+3. 進入容器安裝 Claude Code 並登入
+4. 重啟 Add-on
 
 ---
 

@@ -11,8 +11,12 @@ const { App, LogLevel } = bolt;
 import { config } from 'dotenv';
 import { spawn } from 'child_process';
 import { HAClient } from '../core/ha-client.js';
+import { detectEnvironment } from '../core/env-detect.js';
 
 config();
+
+// 取得環境設定
+const env = detectEnvironment();
 
 // 預設 timeout 1 分鐘
 const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
@@ -22,17 +26,25 @@ const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
  */
 async function executeClaudePrompt(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const claudePath = `${process.env.HOME}/.local/bin/claude`;
+    const claudePath = env.claudePath;
     const startTime = Date.now();
 
     console.log(`[Slack] Running claude --print "${prompt.substring(0, 80)}..."`);
 
+    // 建立環境變數
+    const spawnEnv: Record<string, string> = {
+      ...process.env as Record<string, string>,
+      PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
+    };
+
+    // Add-on 環境：設定 Claude 設定目錄以持久化登入狀態
+    if (env.claudeConfigDir) {
+      spawnEnv.CLAUDE_CONFIG_DIR = env.claudeConfigDir;
+    }
+
     // 使用 acceptEdits 模式允許 MCP 工具寫入檔案（如排程設定）
     const child = spawn(claudePath, ['--print', '--permission-mode', 'acceptEdits', prompt], {
-      env: {
-        ...process.env,
-        PATH: `${process.env.HOME}/.local/bin:${process.env.PATH}`,
-      },
+      env: spawnEnv,
       cwd: process.cwd(), // 確保使用正確的工作目錄
       stdio: ['ignore', 'pipe', 'pipe'],
     });
