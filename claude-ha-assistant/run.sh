@@ -35,11 +35,26 @@ echo "Schedule Data: $SCHEDULE_DATA_PATH"
 echo "Claude Config: $CLAUDE_CONFIG_DIR"
 
 # 檢查 SUPERVISOR_TOKEN（由 HA 自動注入）
+# s6-overlay 可能將環境變數存在檔案中
+if [ -z "$SUPERVISOR_TOKEN" ] && [ -f /var/run/s6/container_environment/SUPERVISOR_TOKEN ]; then
+    echo "從 s6 環境檔案載入 SUPERVISOR_TOKEN..."
+    SUPERVISOR_TOKEN=$(cat /var/run/s6/container_environment/SUPERVISOR_TOKEN)
+    export SUPERVISOR_TOKEN
+fi
+
 if [ -n "$SUPERVISOR_TOKEN" ]; then
     echo "SUPERVISOR_TOKEN: (已設定，長度 ${#SUPERVISOR_TOKEN})"
-    export SUPERVISOR_TOKEN="$SUPERVISOR_TOKEN"
 else
     echo "Warning: SUPERVISOR_TOKEN 未設定"
+    echo ""
+    echo "Debug: 檢查 s6 環境目錄..."
+    if [ -d /var/run/s6/container_environment ]; then
+        echo "  /var/run/s6/container_environment 內容："
+        ls -la /var/run/s6/container_environment/ 2>/dev/null || echo "  無法列出"
+    else
+        echo "  /var/run/s6/container_environment 不存在"
+    fi
+    echo ""
     echo "檢查 Add-on 設定中是否有 homeassistant_api: true"
 fi
 
