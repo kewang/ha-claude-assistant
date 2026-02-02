@@ -1,5 +1,16 @@
 ARG BUILD_FROM
+
+# 第一階段：從 Node.js Alpine 鏡像取得 Node.js
+FROM node:20-alpine AS node-base
+
+# 第二階段：HA Add-on
 FROM ${BUILD_FROM}
+
+# 從 node-base 複製 Node.js
+COPY --from=node-base /usr/local/bin/node /usr/local/bin/
+COPY --from=node-base /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 # 安裝必要的系統套件
 RUN apk add --no-cache \
@@ -7,25 +18,10 @@ RUN apk add --no-cache \
     curl \
     jq \
     git \
-    libstdc++ \
-    xz
+    libstdc++
 
-# 設定 Node.js 版本
-ENV NODE_VERSION=20.18.0
-
-# 從 unofficial-builds 下載 Node.js musl 版本
-RUN ARCH="$(apk --print-arch)" && \
-    case "${ARCH}" in \
-        x86_64) NODE_ARCH='x64';; \
-        aarch64) NODE_ARCH='arm64';; \
-        armv7l|armhf) NODE_ARCH='armv7l';; \
-        *) echo "Unsupported architecture: ${ARCH}"; exit 1;; \
-    esac && \
-    echo "Downloading Node.js ${NODE_VERSION} for ${NODE_ARCH}-musl..." && \
-    curl -fsSL "https://unofficial-builds.nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}-musl.tar.xz" -o /tmp/node.tar.xz && \
-    tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 && \
-    rm /tmp/node.tar.xz && \
-    node --version && npm --version
+# 驗證 Node.js 安裝
+RUN node --version && npm --version
 
 # 設定工作目錄
 WORKDIR /app
