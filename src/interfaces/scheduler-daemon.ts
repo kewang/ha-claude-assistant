@@ -83,8 +83,8 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
       spawnEnv.CLAUDE_CONFIG_DIR = env.claudeConfigDir;
     }
 
-    // 使用 acceptEdits 模式允許 MCP 工具寫入檔案（如排程設定）
-    const child = spawn(claudePath, ['--print', '--permission-mode', 'acceptEdits', prompt], {
+    // 使用 bypassPermissions 模式允許 MCP 工具自動執行（Add-on 環境下安全）
+    const child = spawn(claudePath, ['--print', '--permission-mode', 'bypassPermissions', prompt], {
       env: spawnEnv,
       cwd: process.cwd(), // 確保使用正確的工作目錄
       stdio: ['ignore', 'pipe', 'pipe'],
