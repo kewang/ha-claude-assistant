@@ -34,6 +34,22 @@ echo "Log Level: $LOG_LEVEL"
 echo "Schedule Data: $SCHEDULE_DATA_PATH"
 echo "Claude Config: $CLAUDE_CONFIG_DIR"
 
+# 檢查 SUPERVISOR_TOKEN（由 HA 自動注入）
+if [ -n "$SUPERVISOR_TOKEN" ]; then
+    echo "SUPERVISOR_TOKEN: (已設定，長度 ${#SUPERVISOR_TOKEN})"
+    export SUPERVISOR_TOKEN="$SUPERVISOR_TOKEN"
+else
+    echo "Warning: SUPERVISOR_TOKEN 未設定"
+    echo "檢查 Add-on 設定中是否有 homeassistant_api: true"
+fi
+
+# Debug: 列出相關環境變數
+echo ""
+echo "環境變數狀態："
+echo "  SUPERVISOR_TOKEN: ${SUPERVISOR_TOKEN:+(已設定)}"
+echo "  HA_URL: ${HA_URL:-未設定}"
+echo "  HA_TOKEN: ${HA_TOKEN:+(已設定)}"
+
 # 檢查 Slack 設定
 if [ -z "$SLACK_BOT_TOKEN" ] || [ -z "$SLACK_APP_TOKEN" ]; then
     echo "Warning: Slack tokens not configured. Please set slack_bot_token and slack_app_token in Add-on configuration."

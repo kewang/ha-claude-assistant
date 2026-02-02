@@ -18,6 +18,13 @@ config();
 // 取得環境設定
 const env = detectEnvironment();
 
+// Debug: 顯示環境偵測結果
+console.log('[Slack] Environment detection:');
+console.log(`  isAddon: ${env.isAddon}`);
+console.log(`  SUPERVISOR_TOKEN: ${process.env.SUPERVISOR_TOKEN ? '(已設定)' : '未設定'}`);
+console.log(`  HA_URL: ${process.env.HA_URL || '未設定'}`);
+console.log(`  HA_TOKEN: ${process.env.HA_TOKEN ? '(已設定)' : '未設定'}`);
+
 // 預設 timeout 1 分鐘
 const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
 
