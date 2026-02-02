@@ -33,24 +33,9 @@ export CLAUDE_CONFIG_DIR="/data/claude"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 mkdir -p "$(dirname "$SCHEDULE_DATA_PATH")"
 
-# 自動建立 Claude MCP 設定檔
-MCP_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
-if [ ! -f "$MCP_SETTINGS_FILE" ]; then
-    echo "建立 Claude MCP 設定檔..."
-    cat > "$MCP_SETTINGS_FILE" << 'EOF'
-{
-  "mcpServers": {
-    "ha-assistant": {
-      "command": "node",
-      "args": ["/app/dist/interfaces/mcp-server.js"]
-    }
-  }
-}
-EOF
-    echo "MCP 設定檔已建立: $MCP_SETTINGS_FILE"
-else
-    echo "MCP 設定檔已存在: $MCP_SETTINGS_FILE"
-fi
+# 刪除舊的錯誤設定檔（如果存在）
+rm -f "$CLAUDE_CONFIG_DIR/settings.json" 2>/dev/null || true
+rm -f "/app/.mcp.json" 2>/dev/null || true
 
 echo "Timezone: $TIMEZONE"
 echo "Log Level: $LOG_LEVEL"
@@ -150,6 +135,46 @@ if [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
     done
 
     echo "Claude 登入完成！繼續啟動..."
+fi
+
+# 登入完成後，使用 claude mcp add 設定 MCP Server
+echo ""
+echo "設定 MCP Server..."
+
+# 檢查 ha-assistant MCP 是否已存在
+if claude mcp get ha-assistant &>/dev/null; then
+    echo "MCP Server 'ha-assistant' 已存在，跳過設定"
+else
+    echo "添加 MCP Server 'ha-assistant'..."
+    claude mcp add --scope user --transport stdio ha-assistant -- node /app/dist/interfaces/mcp-server.js
+    echo "MCP Server 已添加"
+fi
+
+# 設定 permissions（只能透過設定檔）
+echo "設定 MCP 工具權限..."
+MCP_CONFIG_FILE="$CLAUDE_CONFIG_DIR/.claude.json"
+PERMISSIONS_TO_ADD=(
+    "mcp__ha-assistant__list_entities"
+    "mcp__ha-assistant__get_state"
+    "mcp__ha-assistant__call_service"
+    "mcp__ha-assistant__manage_schedule"
+)
+
+if [ -f "$MCP_CONFIG_FILE" ]; then
+    # 逐一添加權限（如果不存在的話）
+    for PERM in "${PERMISSIONS_TO_ADD[@]}"; do
+        # 檢查權限是否已存在
+        if jq -e ".permissions.allow // [] | index(\"$PERM\")" "$MCP_CONFIG_FILE" &>/dev/null; then
+            echo "  權限已存在: $PERM"
+        else
+            echo "  添加權限: $PERM"
+            jq ".permissions.allow = ((.permissions.allow // []) + [\"$PERM\"])" "$MCP_CONFIG_FILE" > "$MCP_CONFIG_FILE.tmp"
+            mv "$MCP_CONFIG_FILE.tmp" "$MCP_CONFIG_FILE"
+        fi
+    done
+    echo "權限設定完成"
+else
+    echo "Warning: 設定檔 $MCP_CONFIG_FILE 不存在，無法設定權限"
 fi
 
 echo ""
