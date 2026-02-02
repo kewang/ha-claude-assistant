@@ -119,7 +119,7 @@ npm run slack
 - 私訊 Bot：直接對話
 - 在頻道中 @mention：`@HA助理 把燈關掉`
 - 使用指令：`/ha 列出所有燈具`
-- 排程指令：`/ha-schedule list`
+- 排程管理：`/ha 列出所有排程`
 
 ## 專案結構
 
@@ -203,8 +203,7 @@ npm test -- --watch
    - `im:read`
    - `im:write`
 6. 建立 Slash Commands：
-   - `/ha` - 智慧家庭控制
-   - `/ha-schedule` - 排程管理
+   - `/ha` - 智慧家庭控制（包含排程管理）
 7. 安裝到 Workspace
 8. 複製 Bot Token（xoxb-）和 App Token（xapp-）
 

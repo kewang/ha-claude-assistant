@@ -30,7 +30,7 @@ claude mcp add --transport stdio ha-assistant \
 - Socket Mode 啟用
 - Bot Token Scopes 設定
 - Event Subscriptions（app_mention, message.im）
-- Slash Commands：`/ha`, `/ha-schedule`
+- Slash Commands：`/ha`
 - App Home > Messages Tab 啟用
 
 ### ✅ 6. 設定 Slack 環境變數

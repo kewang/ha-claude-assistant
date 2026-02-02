@@ -1,14 +1,14 @@
 ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
-# 安裝必要的系統套件
+# 安裝必要的系統套件和 Node.js
 RUN apk add --no-cache \
     bash \
     curl \
     jq \
     git \
-    npm \
-    nodejs
+    nodejs \
+    npm
 
 # 設定工作目錄
 WORKDIR /app
@@ -20,7 +20,7 @@ RUN git clone --depth 1 https://github.com/kewang/ha-claude-assistant.git . && \
     rm -rf .git node_modules && \
     npm ci --omit=dev
 
-# 複製啟動腳本（從 Add-on 目錄，因為建置上下文是 Add-on 目錄）
+# 複製啟動腳本
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
