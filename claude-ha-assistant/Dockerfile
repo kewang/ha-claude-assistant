@@ -5,20 +5,23 @@ FROM ${BUILD_FROM}
 RUN apk add --no-cache \
     bash \
     curl \
-    jq
+    jq \
+    git \
+    npm \
+    nodejs
 
 # 設定工作目錄
 WORKDIR /app
 
-# 複製 package.json 並安裝依賴
-COPY package*.json ./
-RUN npm ci --omit=dev
+# 從 GitHub 克隆並建置
+RUN git clone --depth 1 https://github.com/kewang/ha-claude-assistant.git . && \
+    npm ci && \
+    npm run build && \
+    rm -rf .git node_modules && \
+    npm ci --omit=dev
 
-# 複製編譯後的程式碼
-COPY dist/ ./dist/
-
-# 複製啟動腳本
-COPY claude-ha-assistant/run.sh /run.sh
+# 複製啟動腳本（從 Add-on 目錄，因為建置上下文是 Add-on 目錄）
+COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
 # 建立資料目錄
