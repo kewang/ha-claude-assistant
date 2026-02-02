@@ -35,11 +35,21 @@ echo "Schedule Data: $SCHEDULE_DATA_PATH"
 echo "Claude Config: $CLAUDE_CONFIG_DIR"
 
 # 檢查 SUPERVISOR_TOKEN（由 HA 自動注入）
-# s6-overlay 可能將環境變數存在檔案中
-if [ -z "$SUPERVISOR_TOKEN" ] && [ -f /var/run/s6/container_environment/SUPERVISOR_TOKEN ]; then
-    echo "從 s6 環境檔案載入 SUPERVISOR_TOKEN..."
-    SUPERVISOR_TOKEN=$(cat /var/run/s6/container_environment/SUPERVISOR_TOKEN)
-    export SUPERVISOR_TOKEN
+# 嘗試多種方式取得 token
+if [ -z "$SUPERVISOR_TOKEN" ]; then
+    # 方法 1: s6-overlay 環境檔案
+    if [ -f /var/run/s6/container_environment/SUPERVISOR_TOKEN ]; then
+        echo "從 s6 環境檔案載入 SUPERVISOR_TOKEN..."
+        SUPERVISOR_TOKEN=$(cat /var/run/s6/container_environment/SUPERVISOR_TOKEN)
+    # 方法 2: bashio（HA Add-on 標準工具）
+    elif command -v bashio &> /dev/null; then
+        echo "嘗試從 bashio 取得 SUPERVISOR_TOKEN..."
+        SUPERVISOR_TOKEN=$(bashio::supervisor.token 2>/dev/null) || true
+    fi
+
+    if [ -n "$SUPERVISOR_TOKEN" ]; then
+        export SUPERVISOR_TOKEN
+    fi
 fi
 
 if [ -n "$SUPERVISOR_TOKEN" ]; then
@@ -47,15 +57,31 @@ if [ -n "$SUPERVISOR_TOKEN" ]; then
 else
     echo "Warning: SUPERVISOR_TOKEN 未設定"
     echo ""
-    echo "Debug: 檢查 s6 環境目錄..."
+    echo "Debug: 檢查可能的 token 來源..."
+
+    # 檢查 s6 環境目錄
     if [ -d /var/run/s6/container_environment ]; then
-        echo "  /var/run/s6/container_environment 內容："
-        ls -la /var/run/s6/container_environment/ 2>/dev/null || echo "  無法列出"
+        echo "  /var/run/s6/container_environment 存在，內容："
+        ls -1 /var/run/s6/container_environment/ 2>/dev/null | head -20 || echo "  無法列出"
     else
         echo "  /var/run/s6/container_environment 不存在"
     fi
+
+    # 檢查 bashio
     echo ""
-    echo "檢查 Add-on 設定中是否有 homeassistant_api: true"
+    if command -v bashio &> /dev/null; then
+        echo "  bashio 可用"
+    else
+        echo "  bashio 不可用"
+    fi
+
+    # 列出所有 SUPERVISOR 相關的環境變數
+    echo ""
+    echo "  SUPERVISOR 相關環境變數："
+    env | grep -i supervisor || echo "  （無）"
+
+    echo ""
+    echo "請確認 config.yaml 中有 homeassistant_api: true"
 fi
 
 # Debug: 列出相關環境變數
