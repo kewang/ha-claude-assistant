@@ -55,38 +55,37 @@ if [ -z "$SLACK_BOT_TOKEN" ] || [ -z "$SLACK_APP_TOKEN" ]; then
     echo "Warning: Slack tokens not configured. Please set slack_bot_token and slack_app_token in Add-on configuration."
 fi
 
-# 檢查 Claude CLI 是否已安裝
-if ! command -v claude &> /dev/null; then
+# 顯示 Claude CLI 版本
+echo ""
+echo "Claude CLI 版本："
+claude --version || echo "Warning: 無法取得 Claude CLI 版本"
+
+# 檢查 Claude 是否已登入
+echo ""
+echo "檢查 Claude 登入狀態..."
+if [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
     echo ""
     echo "=========================================="
-    echo "Claude CLI 尚未安裝！"
+    echo "Claude CLI 尚未登入！"
     echo ""
-    echo "請執行以下步驟安裝並登入 Claude："
+    echo "請進入容器執行登入："
     echo ""
     echo "1. 進入容器："
-    echo "   docker exec -it addon_claude_ha_assistant bash"
+    echo "   docker exec -it \$(docker ps -qf name=claude_ha_assistant) bash"
     echo ""
-    echo "2. 安裝 Claude Code："
-    echo "   npm install -g @anthropic-ai/claude-code"
-    echo ""
-    echo "3. 登入 Claude："
+    echo "2. 登入 Claude："
     echo "   CLAUDE_CONFIG_DIR=/data/claude claude login"
     echo ""
+    echo "登入完成後，Add-on 會自動繼續啟動。"
     echo "=========================================="
     echo ""
-    echo "等待 Claude CLI 安裝中...（每 30 秒檢查一次）"
+    echo "等待登入中...（每 30 秒檢查一次）"
 
-    while ! command -v claude &> /dev/null; do
+    while [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; do
         sleep 30
     done
 
-    echo "Claude CLI 已偵測到！繼續啟動..."
-fi
-
-# 檢查 Claude 是否已登入
-echo "檢查 Claude 登入狀態..."
-if ! CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude --version &> /dev/null; then
-    echo "Warning: Claude CLI 可能未正確登入"
+    echo "Claude 登入完成！繼續啟動..."
 fi
 
 echo ""

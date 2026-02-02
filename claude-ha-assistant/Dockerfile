@@ -23,6 +23,10 @@ RUN apk add --no-cache \
 # 驗證 Node.js 安裝
 RUN node --version && npm --version
 
+# 安裝 Claude Code CLI（全域）
+RUN npm install -g @anthropic-ai/claude-code && \
+    claude --version
+
 # 設定工作目錄
 WORKDIR /app
 
