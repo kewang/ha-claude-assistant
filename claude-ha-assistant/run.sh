@@ -29,6 +29,29 @@ export LOG_LEVEL="$LOG_LEVEL"
 export SCHEDULE_DATA_PATH="/data/schedules/schedules.json"
 export CLAUDE_CONFIG_DIR="/data/claude"
 
+# 確保必要的目錄存在
+mkdir -p "$CLAUDE_CONFIG_DIR"
+mkdir -p "$(dirname "$SCHEDULE_DATA_PATH")"
+
+# 自動建立 Claude MCP 設定檔
+MCP_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
+if [ ! -f "$MCP_SETTINGS_FILE" ]; then
+    echo "建立 Claude MCP 設定檔..."
+    cat > "$MCP_SETTINGS_FILE" << 'EOF'
+{
+  "mcpServers": {
+    "ha-assistant": {
+      "command": "node",
+      "args": ["/app/dist/interfaces/mcp-server.js"]
+    }
+  }
+}
+EOF
+    echo "MCP 設定檔已建立: $MCP_SETTINGS_FILE"
+else
+    echo "MCP 設定檔已存在: $MCP_SETTINGS_FILE"
+fi
+
 echo "Timezone: $TIMEZONE"
 echo "Log Level: $LOG_LEVEL"
 echo "Schedule Data: $SCHEDULE_DATA_PATH"
