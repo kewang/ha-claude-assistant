@@ -26,22 +26,19 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
    - `slack_app_token`：App Token (xapp-)
    - `slack_default_channel`：預設頻道 ID (C...)
 
-### 3. 安裝並登入 Claude Code
+### 3. 登入 Claude Code
 
-**重要**：你需要手動進入 Add-on 容器安裝 Claude Code 並登入。
+**重要**：Claude Code 已預先安裝在容器中，但你需要手動登入。
 
 ```bash
 # 1. 進入 Add-on 容器
-docker exec -it addon_claude_ha_assistant bash
+docker exec -it $(docker ps -qf name=claude) bash
 
-# 2. 安裝 Claude Code
-npm install -g @anthropic-ai/claude-code
-
-# 3. 登入 Claude（會開啟瀏覽器進行 OAuth）
-CLAUDE_CONFIG_DIR=/data/claude claude login
+# 2. 登入 Claude（會開啟瀏覽器進行 OAuth）
+su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ```
 
-登入完成後，重啟 Add-on 即可開始使用。
+登入完成後，Add-on 會自動繼續啟動。
 
 ## 使用方式
 
@@ -85,9 +82,9 @@ CLAUDE_CONFIG_DIR=/data/claude claude login
 
 ## 故障排除
 
-### Claude CLI 未安裝
+### Claude CLI 未登入
 
-如果日誌顯示「Claude CLI 尚未安裝」，請按照上述步驟進入容器安裝並登入。
+如果日誌顯示「Claude CLI 尚未登入」，請按照上述步驟進入容器登入。
 
 ### Slack 連線失敗
 
@@ -113,7 +110,9 @@ CLAUDE_CONFIG_DIR=/data/claude claude login
 ```
 Slack Bot / Scheduler
         ↓
-  Claude CLI (--print)
+  claude-run (以非 root 用戶執行)
+        ↓
+  Claude CLI (--print --permission-mode bypassPermissions)
         ↓
     MCP Server
         ↓
@@ -121,6 +120,8 @@ Slack Bot / Scheduler
         ↓
   Home Assistant
 ```
+
+> **注意**：Claude CLI 的 `bypassPermissions` 模式不允許在 root 下執行，因此使用 `su-exec` 以 `claude` 用戶身份執行。
 
 ## 支援
 

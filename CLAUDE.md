@@ -264,11 +264,21 @@ pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler
 
 ```
 HA Add-on 容器
-├── Claude CLI（用戶手動安裝並登入）
+├── Claude CLI（預先安裝，需手動登入）
+├── claude-run（wrapper，以非 root 用戶執行 claude）
 ├── MCP Server（stdio，給 Claude CLI 用）
 ├── Slack Bot（主程式）
 ├── Scheduler（背景程式）
 └── HAClient → http://supervisor/core（Supervisor API）
+```
+
+### 非 Root 執行
+
+Claude CLI 的 `--permission-mode bypassPermissions` 不允許在 root 下執行。因此 Add-on 使用 `su-exec` 以 `claude` 用戶身份執行 Claude CLI：
+
+```bash
+# claude-run wrapper 等同於：
+su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude "$@"
 ```
 
 ### 環境偵測
@@ -288,7 +298,7 @@ HA Add-on 容器
 |------|------------|---------|
 | `SUPERVISOR_TOKEN` | 自動提供 | - |
 | `SCHEDULE_DATA_PATH` | `/data/schedules/schedules.json` | `data/schedules.json` |
-| `CLAUDE_PATH` | `claude` | `~/.local/bin/claude` |
+| `CLAUDE_PATH` | `/usr/local/bin/claude-run` | `~/.local/bin/claude` |
 | `CLAUDE_CONFIG_DIR` | `/data/claude` | - |
 
 ### Add-on 安裝
