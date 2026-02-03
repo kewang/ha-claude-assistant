@@ -12,6 +12,7 @@ import { config } from 'dotenv';
 import { spawn } from 'child_process';
 import { HAClient } from '../core/ha-client.js';
 import { detectEnvironment } from '../core/env-detect.js';
+import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 
 config();
 
@@ -32,6 +33,13 @@ const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
  * 執行 Claude CLI
  */
 async function executeClaudePrompt(prompt: string): Promise<string> {
+  // 執行前確保 token 有效
+  const tokenService = getTokenRefreshService();
+  const tokenResult = await tokenService.ensureValidToken();
+  if (!tokenResult.success && tokenResult.needsRelogin) {
+    throw new Error('Claude token 已過期，需要重新登入。請執行：claude login');
+  }
+
   return new Promise((resolve, reject) => {
     const claudePath = env.claudePath;
     const startTime = Date.now();

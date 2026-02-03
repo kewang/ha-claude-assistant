@@ -17,6 +17,7 @@ import { spawn } from 'child_process';
 import { WebClient } from '@slack/web-api';
 import { ScheduleStore, type StoredSchedule } from '../core/schedule-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
+import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 
 config();
 
@@ -252,6 +253,20 @@ async function main(): Promise<void> {
     console.log('[Scheduler] Slack not configured (SLACK_BOT_TOKEN or SLACK_DEFAULT_CHANNEL missing)');
   }
 
+  // 初始化 Token 刷新服務
+  const tokenRefreshService = getTokenRefreshService();
+
+  // 設定 Slack 通知回呼
+  if (slackClient && slackChannel) {
+    tokenRefreshService.setNotificationCallback(async (message: string) => {
+      await sendToSlack(message);
+    });
+  }
+
+  // 啟動 Token 刷新服務
+  tokenRefreshService.start();
+  console.log('[Scheduler] Token refresh service started');
+
   // 初始化 store
   await store.init();
 
@@ -269,6 +284,7 @@ async function main(): Promise<void> {
   // 優雅關閉
   process.on('SIGINT', () => {
     console.log('\n[Scheduler] Shutting down...');
+    tokenRefreshService.stop();
     store.stopWatching();
     for (const task of activeTasks.values()) {
       task.stop();
@@ -278,6 +294,7 @@ async function main(): Promise<void> {
 
   process.on('SIGTERM', () => {
     console.log('[Scheduler] Received SIGTERM, shutting down...');
+    tokenRefreshService.stop();
     store.stopWatching();
     for (const task of activeTasks.values()) {
       task.stop();

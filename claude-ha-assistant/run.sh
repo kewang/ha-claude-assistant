@@ -131,7 +131,7 @@ echo "檢查 Claude 登入狀態..."
 if [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
     echo ""
     echo "=========================================="
-    echo "Claude CLI 尚未登入！"
+    echo "⚠️ Claude CLI 尚未登入！"
     echo ""
     echo "請進入容器執行登入："
     echo ""
@@ -141,16 +141,17 @@ if [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
     echo "2. 登入 Claude："
     echo "   su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login"
     echo ""
-    echo "登入完成後，Add-on 會自動繼續啟動。"
+    echo "登入後，服務會自動維護 token 有效性。"
     echo "=========================================="
     echo ""
-    echo "等待登入中...（每 30 秒檢查一次）"
-
-    while [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; do
-        sleep 30
-    done
-
-    echo "Claude 登入完成！繼續啟動..."
+    echo "服務將繼續啟動，但 Claude 相關功能需要登入後才能使用。"
+else
+    echo "Claude 已登入"
+    # 顯示 token 狀態
+    EXPIRES_AT=$(jq -r '.claudeAiOauth.expiresAt // empty' "$CLAUDE_CONFIG_DIR/.credentials.json" 2>/dev/null)
+    if [ -n "$EXPIRES_AT" ]; then
+        echo "Token 過期時間: $EXPIRES_AT"
+    fi
 fi
 
 # 登入完成後，使用 claude mcp add 設定 MCP Server

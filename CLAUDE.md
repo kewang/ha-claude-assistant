@@ -43,7 +43,8 @@ src/
 ├── core/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
 │   ├── schedule-store.ts # 排程持久化儲存
-│   └── env-detect.ts     # 環境偵測（Add-on / 一般環境）
+│   ├── env-detect.ts     # 環境偵測（Add-on / 一般環境）
+│   └── claude-token-refresh.ts # OAuth Token 自動刷新
 ├── interfaces/
 │   ├── cli.ts            # CLI 互動介面（使用 Claude CLI）
 │   ├── mcp-server.ts     # MCP Server（stdio）
@@ -135,6 +136,14 @@ SLACK_DEFAULT_CHANNEL=C...
 - `create(schedule)` - 建立排程
 - `update(id, updates)` - 更新排程
 - `delete(id)` - 刪除排程
+
+### ClaudeTokenRefreshService (claude-token-refresh.ts)
+- `start()` - 啟動定期檢查（每 5 分鐘）
+- `stop()` - 停止定期檢查
+- `refreshToken()` - 手動刷新 token
+- `ensureValidToken()` - 確保 token 有效（執行 Claude CLI 前呼叫）
+- `getTokenStatus()` - 取得目前 token 狀態
+- `setNotificationCallback()` - 設定通知回呼（用於 Slack 通知）
 
 ## Claude Tools
 
@@ -247,6 +256,39 @@ pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler
 
 - `claude` CLI 已安裝並登入
 - 設定 `SLACK_BOT_TOKEN` 和 `SLACK_DEFAULT_CHANNEL`（用於發送通知）
+
+## Token 自動刷新機制
+
+Claude CLI 的 OAuth token 會定期過期：
+- **Access token**: 約 8-12 小時過期
+- **Refresh token**: 約 7-30 天過期
+
+系統會自動維護 token 有效性，減少手動介入。
+
+### 運作方式
+
+1. **定期檢查**：每 5 分鐘檢查 token 狀態
+2. **提前刷新**：在 access token 過期前 30 分鐘自動刷新
+3. **執行前檢查**：Slack Bot 在執行 Claude CLI 前會確保 token 有效
+4. **失敗通知**：refresh token 過期時發送 Slack 通知
+
+### 用戶體驗
+
+1. **首次設定**：進入容器執行 `claude login`（僅此一次）
+2. **日常使用**：系統自動維護 token，用戶無需介入
+3. **Refresh token 過期時**：收到 Slack 通知，需重新登入（約 7-30 天一次）
+
+### 手動重新登入
+
+當收到 token 過期通知時：
+
+```bash
+# 進入容器
+docker exec -it $(docker ps -qf name=claude_ha_assistant) bash
+
+# 重新登入
+su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
+```
 
 ## 注意事項
 
