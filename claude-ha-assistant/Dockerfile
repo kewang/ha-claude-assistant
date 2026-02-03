@@ -18,7 +18,12 @@ RUN apk add --no-cache \
     curl \
     jq \
     git \
-    libstdc++
+    libstdc++ \
+    su-exec
+
+# 建立非 root 用戶（用於執行 claude CLI）
+RUN addgroup -g 1000 claude && \
+    adduser -u 1000 -G claude -h /home/claude -s /bin/bash -D claude
 
 # 驗證 Node.js 安裝
 RUN node --version && npm --version
@@ -42,7 +47,8 @@ COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
 # 建立資料目錄
-RUN mkdir -p /data/schedules /data/claude
+RUN mkdir -p /data/schedules /data/claude && \
+    chown -R claude:claude /data/claude
 
 # 設定環境變數
 ENV NODE_ENV=production

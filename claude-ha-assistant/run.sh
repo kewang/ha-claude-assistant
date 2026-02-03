@@ -33,9 +33,19 @@ export CLAUDE_CONFIG_DIR="/data/claude"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 mkdir -p "$(dirname "$SCHEDULE_DATA_PATH")"
 
-# 刪除舊的錯誤設定檔（如果存在）
-rm -f "$CLAUDE_CONFIG_DIR/settings.json" 2>/dev/null || true
-rm -f "/app/.mcp.json" 2>/dev/null || true
+# 設定 claude 用戶的目錄權限
+chown -R claude:claude "$CLAUDE_CONFIG_DIR"
+chown -R claude:claude "$(dirname "$SCHEDULE_DATA_PATH")"
+
+# 建立 claude-run wrapper（以 claude 用戶身份執行 claude CLI）
+cat > /usr/local/bin/claude-run << WRAPPER
+#!/bin/bash
+exec su-exec claude env CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude "\$@"
+WRAPPER
+chmod +x /usr/local/bin/claude-run
+
+# 設定環境變數讓程式使用 claude-run
+export CLAUDE_PATH="/usr/local/bin/claude-run"
 
 echo "Timezone: $TIMEZONE"
 echo "Log Level: $LOG_LEVEL"
@@ -107,7 +117,7 @@ fi
 # 顯示 Claude CLI 版本
 echo ""
 echo "Claude CLI 版本："
-claude --version || echo "Warning: 無法取得 Claude CLI 版本"
+su-exec claude claude --version || echo "Warning: 無法取得 Claude CLI 版本"
 
 # 檢查 Claude 是否已登入
 echo ""
@@ -123,7 +133,7 @@ if [ ! -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]; then
     echo "   docker exec -it \$(docker ps -qf name=claude_ha_assistant) bash"
     echo ""
     echo "2. 登入 Claude："
-    echo "   CLAUDE_CONFIG_DIR=/data/claude claude login"
+    echo "   su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login"
     echo ""
     echo "登入完成後，Add-on 會自動繼續啟動。"
     echo "=========================================="
@@ -141,12 +151,12 @@ fi
 echo ""
 echo "設定 MCP Server..."
 
-# 檢查 ha-assistant MCP 是否已存在
-if claude mcp get ha-assistant &>/dev/null; then
+# 檢查 ha-assistant MCP 是否已存在（以 claude 用戶執行）
+if su-exec claude env CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude mcp get ha-assistant &>/dev/null; then
     echo "MCP Server 'ha-assistant' 已存在，跳過設定"
 else
     echo "添加 MCP Server 'ha-assistant'..."
-    claude mcp add --scope user --transport stdio ha-assistant -- node /app/dist/interfaces/mcp-server.js
+    su-exec claude env CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude mcp add --scope user --transport stdio ha-assistant -- node /app/dist/interfaces/mcp-server.js
     echo "MCP Server 已添加"
 fi
 
@@ -172,6 +182,8 @@ if [ -f "$MCP_CONFIG_FILE" ]; then
             mv "$MCP_CONFIG_FILE.tmp" "$MCP_CONFIG_FILE"
         fi
     done
+    # 確保設定檔權限正確
+    chown claude:claude "$MCP_CONFIG_FILE"
     echo "權限設定完成"
 else
     echo "Warning: 設定檔 $MCP_CONFIG_FILE 不存在，無法設定權限"
