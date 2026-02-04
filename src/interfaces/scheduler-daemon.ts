@@ -42,6 +42,31 @@ const timezone = process.env.TZ || 'Asia/Taipei';
 const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
 
 /**
+ * Claude CLI 執行結果
+ */
+interface ClaudeExecutionResult {
+  success: boolean;
+  output: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  error?: Error;
+}
+
+/**
+ * 檢查錯誤是否為 token 過期問題
+ */
+function isTokenExpiredError(stdout: string, stderr: string): boolean {
+  const combined = stdout + stderr;
+  return (
+    combined.includes('401') ||
+    combined.includes('authentication_error') ||
+    combined.includes('OAuth token has expired') ||
+    (combined.includes('token') && combined.includes('expired'))
+  );
+}
+
+/**
  * 發送訊息到 Slack
  */
 async function sendToSlack(message: string): Promise<void> {
@@ -66,8 +91,8 @@ async function sendToSlack(message: string): Promise<void> {
 /**
  * 執行 Claude CLI
  */
-async function executeClaudePrompt(prompt: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+async function executeClaudePrompt(prompt: string): Promise<ClaudeExecutionResult> {
+  return new Promise((resolve) => {
     const claudePath = env.claudePath;
     const startTime = Date.now();
 
@@ -108,7 +133,14 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
       console.error(`[Scheduler] Timeout after ${elapsed}s, stdout length: ${stdout.length}, stderr length: ${stderr.length}`);
       child.kill('SIGTERM');
-      reject(new Error(`Claude 執行超時（${Math.round(CLAUDE_TIMEOUT_MS / 60000)} 分鐘）`));
+      resolve({
+        success: false,
+        output: '',
+        stdout,
+        stderr,
+        exitCode: null,
+        error: new Error(`Claude 執行超時（${Math.round(CLAUDE_TIMEOUT_MS / 60000)} 分鐘）`),
+      });
     }, CLAUDE_TIMEOUT_MS);
 
     child.on('close', (code) => {
@@ -119,18 +151,38 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
       }
 
       if (code === 0) {
-        resolve(stdout.trim());
+        resolve({
+          success: true,
+          output: stdout.trim(),
+          stdout,
+          stderr,
+          exitCode: code,
+        });
       } else {
         console.error(`[Scheduler] Claude exited with code ${code}`);
         console.error('[Scheduler] stdout:', stdout);
         console.error('[Scheduler] stderr:', stderr);
-        reject(new Error(`Claude 執行失敗 (exit code: ${code})`));
+        resolve({
+          success: false,
+          output: '',
+          stdout,
+          stderr,
+          exitCode: code,
+          error: new Error(`Claude 執行失敗 (exit code: ${code})`),
+        });
       }
     });
 
     child.on('error', (error) => {
       clearTimeout(timeout);
-      reject(new Error(`Claude 執行錯誤: ${error.message}`));
+      resolve({
+        success: false,
+        output: '',
+        stdout,
+        stderr,
+        exitCode: null,
+        error: new Error(`Claude 執行錯誤: ${error.message}`),
+      });
     });
   });
 }
@@ -142,23 +194,55 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
   console.log(`[Scheduler] Executing: ${schedule.name} (${schedule.id})`);
 
   const startTime = new Date();
+  const tokenService = getTokenRefreshService();
 
-  try {
-    const result = await executeClaudePrompt(schedule.prompt);
+  // 1. 執行前確保 token 有效
+  const tokenResult = await tokenService.ensureValidToken();
+  if (!tokenResult.success && tokenResult.needsRelogin) {
+    // Token 完全失效，需要重新登入，發送通知
+    const message = [
+      `❌ *排程任務執行失敗*`,
+      `*名稱*: ${schedule.name}`,
+      `*時間*: ${startTime.toLocaleString('zh-TW', { timeZone: timezone })}`,
+      `*錯誤*: Token 已過期，需要重新登入`,
+    ].join('\n');
 
+    await sendToSlack(message);
+    console.error(`[Scheduler] Failed: ${schedule.name} - Token needs relogin`);
+    return;
+  }
+
+  // 2. 第一次執行
+  let result = await executeClaudePrompt(schedule.prompt);
+
+  // 3. 如果失敗且是 token 問題，嘗試刷新並重試
+  if (!result.success && isTokenExpiredError(result.stdout, result.stderr)) {
+    console.log('[Scheduler] Token expired during execution, refreshing and retrying...');
+
+    const refreshResult = await tokenService.refreshToken();
+    if (refreshResult.success) {
+      console.log('[Scheduler] Token refreshed, retrying execution...');
+      // 重試一次
+      result = await executeClaudePrompt(schedule.prompt);
+    } else {
+      console.error('[Scheduler] Token refresh failed:', refreshResult.message);
+    }
+  }
+
+  // 4. 根據最終結果發送通知
+  if (result.success) {
     const message = [
       `📋 *排程任務執行完成*`,
       `*名稱*: ${schedule.name}`,
       `*時間*: ${startTime.toLocaleString('zh-TW', { timeZone: timezone })}`,
       '',
-      result,
+      result.output,
     ].join('\n');
 
     await sendToSlack(message);
-
     console.log(`[Scheduler] Completed: ${schedule.name}`);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
+  } else {
+    const errorMsg = result.error?.message || 'Unknown error';
 
     const message = [
       `❌ *排程任務執行失敗*`,
@@ -168,8 +252,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     ].join('\n');
 
     await sendToSlack(message);
-
-    console.error(`[Scheduler] Failed: ${schedule.name}`, error);
+    console.error(`[Scheduler] Failed: ${schedule.name}`, result.error);
   }
 }
 
