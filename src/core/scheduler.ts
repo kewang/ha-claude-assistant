@@ -1,6 +1,9 @@
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { ClaudeAgent } from './claude-agent.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('Scheduler');
 
 export interface ScheduleJob {
   id: string;
@@ -55,7 +58,7 @@ export class Scheduler {
       try {
         await handler(message, jobId);
       } catch (error) {
-        console.error(`Notification handler error for job ${jobId}:`, error);
+        logger.error(`Notification handler error for job ${jobId}:`, error);
       }
     }
   }
@@ -120,7 +123,7 @@ export class Scheduler {
       throw new Error(`Job not found: ${jobId}`);
     }
 
-    console.log(`[Scheduler] Executing job: ${job.name} (${jobId})`);
+    logger.info(`Executing job: ${job.name} (${jobId})`);
 
     try {
       const response = await this.agent.query(job.prompt);
@@ -133,12 +136,12 @@ export class Scheduler {
       const notificationMessage = `📋 排程任務：${job.name}\n\n${result}`;
       await this.notify(notificationMessage, jobId);
 
-      console.log(`[Scheduler] Job completed: ${job.name}`);
+      logger.info(`Job completed: ${job.name}`);
       return result;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       job.lastResult = `Error: ${errorMessage}`;
-      console.error(`[Scheduler] Job failed: ${job.name}`, error);
+      logger.error(`Job failed: ${job.name}`, error);
       throw error;
     }
   }
@@ -254,7 +257,7 @@ export class Scheduler {
       try {
         this.addJob(job);
       } catch (error) {
-        console.error(`Failed to load job ${job.id}:`, error);
+        logger.error(`Failed to load job ${job.id}:`, error);
       }
     }
   }

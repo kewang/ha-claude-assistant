@@ -3,8 +3,10 @@ import { existsSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { detectEnvironment } from './env-detect.js';
+import { createLogger } from '../utils/logger.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const logger = createLogger('ScheduleStore');
 
 export interface StoredSchedule {
   id: string;
@@ -74,7 +76,7 @@ export class ScheduleStore {
 
       // 跳過空檔案（可能正在寫入中）
       if (!data.trim()) {
-        console.warn('[ScheduleStore] 檔案為空，跳過載入');
+        logger.warn('檔案為空，跳過載入');
         return;
       }
 
@@ -89,7 +91,7 @@ export class ScheduleStore {
         await this.save();
       } else if (error instanceof SyntaxError) {
         // JSON 解析錯誤，可能是檔案正在寫入中，稍後重試
-        console.warn('[ScheduleStore] JSON 解析錯誤，可能正在寫入中，保留現有資料');
+        logger.warn('JSON 解析錯誤，可能正在寫入中，保留現有資料');
       } else {
         throw error;
       }
@@ -239,19 +241,19 @@ export class ScheduleStore {
                     callback();
                   }
                 } catch (error) {
-                  console.error('[ScheduleStore] Reload error:', error);
+                  logger.error('Reload error:', error);
                 }
               }, 500);
             }
           }
         } catch (error) {
           if ((error as Error).name !== 'AbortError') {
-            console.error('[ScheduleStore] Watch error:', error);
+            logger.error('Watch error:', error);
           }
         }
       })();
     } catch (error) {
-      console.error('[ScheduleStore] Failed to start watching:', error);
+      logger.error('Failed to start watching:', error);
     }
   }
 

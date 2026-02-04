@@ -13,18 +13,21 @@ import { spawn } from 'child_process';
 import { HAClient } from '../core/ha-client.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
+import { createLogger } from '../utils/logger.js';
 
 config();
+
+const logger = createLogger('Slack');
 
 // 取得環境設定
 const env = detectEnvironment();
 
 // Debug: 顯示環境偵測結果
-console.log('[Slack] Environment detection:');
-console.log(`  isAddon: ${env.isAddon}`);
-console.log(`  SUPERVISOR_TOKEN: ${process.env.SUPERVISOR_TOKEN ? '(已設定)' : '未設定'}`);
-console.log(`  HA_URL: ${process.env.HA_URL || '未設定'}`);
-console.log(`  HA_TOKEN: ${process.env.HA_TOKEN ? '(已設定)' : '未設定'}`);
+logger.info('Environment detection:');
+logger.info(`  isAddon: ${env.isAddon}`);
+logger.info(`  SUPERVISOR_TOKEN: ${process.env.SUPERVISOR_TOKEN ? '(已設定)' : '未設定'}`);
+logger.info(`  HA_URL: ${process.env.HA_URL || '未設定'}`);
+logger.info(`  HA_TOKEN: ${process.env.HA_TOKEN ? '(已設定)' : '未設定'}`);
 
 // 預設 timeout 1 分鐘
 const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
@@ -44,7 +47,7 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
     const claudePath = env.claudePath;
     const startTime = Date.now();
 
-    console.log(`[Slack] Running claude --print "${prompt.substring(0, 80)}..."`);
+    logger.info(`Running claude --print "${prompt.substring(0, 80)}..."`);
 
     // 建立環境變數
     const spawnEnv: Record<string, string> = {
@@ -74,12 +77,12 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
     child.stderr.on('data', (data) => {
       stderr += data.toString();
       // 即時輸出 stderr 以便追蹤進度
-      console.error(`[Slack] Claude stderr: ${data.toString().trim()}`);
+      logger.error(`Claude stderr: ${data.toString().trim()}`);
     });
 
     const timeout = setTimeout(() => {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      console.error(`[Slack] Timeout after ${elapsed}s, stdout length: ${stdout.length}, stderr length: ${stderr.length}`);
+      logger.error(`Timeout after ${elapsed}s, stdout length: ${stdout.length}, stderr length: ${stderr.length}`);
       child.kill('SIGTERM');
       reject(new Error(`Claude 執行超時（${Math.round(CLAUDE_TIMEOUT_MS / 60000)} 分鐘）`));
     }, CLAUDE_TIMEOUT_MS);
@@ -88,15 +91,15 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
       clearTimeout(timeout);
 
       if (stderr) {
-        console.error('[Slack] Claude stderr:', stderr);
+        logger.error('Claude stderr:', stderr);
       }
 
       if (code === 0) {
         resolve(stdout.trim());
       } else {
-        console.error(`[Slack] Claude exited with code ${code}`);
-        console.error('[Slack] stdout:', stdout);
-        console.error('[Slack] stderr:', stderr);
+        logger.error(`Claude exited with code ${code}`);
+        logger.error('stdout:', stdout);
+        logger.error('stderr:', stderr);
         reject(new Error(`Claude 執行失敗 (exit code: ${code})`));
       }
     });
@@ -150,7 +153,7 @@ class SlackBot {
       // 忽略 bot 自己的訊息
       if ('bot_id' in message) return;
 
-      console.log(`[Slack] Message from ${userId}: ${text}`);
+      logger.info(`Message from ${userId}: ${text}`);
 
       try {
         const response = await executeClaudePrompt(text);
@@ -160,7 +163,7 @@ class SlackBot {
           thread_ts: message.ts,
         });
       } catch (error) {
-        console.error('[Slack] Error processing message:', error);
+        logger.error('Error processing message:', error);
         await say({
           text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
           thread_ts: message.ts,
@@ -190,7 +193,7 @@ class SlackBot {
         return;
       }
 
-      console.log(`[Slack] Mention from ${userId}: ${text}`);
+      logger.info(`Mention from ${userId}: ${text}`);
 
       try {
         const response = await executeClaudePrompt(text);
@@ -200,7 +203,7 @@ class SlackBot {
           thread_ts: event.ts,
         });
       } catch (error) {
-        console.error('[Slack] Error processing mention:', error);
+        logger.error('Error processing mention:', error);
         await say({
           text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
           thread_ts: event.ts,
@@ -248,7 +251,7 @@ class SlackBot {
       }
 
       // 一般指令：使用 Claude CLI
-      console.log(`[Slack] Command from ${command.user_id}: ${text}`);
+      logger.info(`Command from ${command.user_id}: ${text}`);
 
       try {
         const response = await executeClaudePrompt(text);
@@ -257,7 +260,7 @@ class SlackBot {
           text: response,
         });
       } catch (error) {
-        console.error('[Slack] Error processing command:', error);
+        logger.error('Error processing command:', error);
         await respond({
           text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
         });
@@ -270,7 +273,7 @@ class SlackBot {
    */
   async sendNotification(message: string): Promise<void> {
     if (!this.defaultChannelId) {
-      console.warn('[Slack] No default channel configured for notifications');
+      logger.warn('No default channel configured for notifications');
       return;
     }
 
@@ -280,7 +283,7 @@ class SlackBot {
         text: message,
       });
     } catch (error) {
-      console.error('[Slack] Failed to send notification:', error);
+      logger.error('Failed to send notification:', error);
     }
   }
 
@@ -288,14 +291,14 @@ class SlackBot {
     // 自動偵測 Home Assistant 連線
     try {
       const connection = await this.haClient.autoConnect();
-      console.log(`✓ Home Assistant 連線成功 (${connection.type === 'internal' ? '內網' : '外網'}): ${connection.url}`);
+      logger.info(`Home Assistant 連線成功 (${connection.type === 'internal' ? '內網' : '外網'}): ${connection.url}`);
     } catch (error) {
-      console.error(`⚠️ Home Assistant 連線失敗: ${error instanceof Error ? error.message : error}`);
-      console.error('  Bot 仍會啟動，但 HA 相關功能可能無法使用');
+      logger.error(`Home Assistant 連線失敗: ${error instanceof Error ? error.message : error}`);
+      logger.error('Bot 仍會啟動，但 HA 相關功能可能無法使用');
     }
 
     await this.app.start();
-    console.log('⚡️ Slack Bot 已啟動！');
+    logger.info('Slack Bot 已啟動！');
   }
 
   async stop(): Promise<void> {
@@ -309,12 +312,13 @@ async function main() {
 
   // Graceful shutdown
   process.on('SIGINT', async () => {
-    console.log('\n正在關閉...');
+    logger.info('正在關閉...');
     await bot.stop();
     process.exit(0);
   });
 
   process.on('SIGTERM', async () => {
+    logger.info('Received SIGTERM, shutting down...');
     await bot.stop();
     process.exit(0);
   });
@@ -323,6 +327,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  logger.error('Fatal error:', error);
   process.exit(1);
 });

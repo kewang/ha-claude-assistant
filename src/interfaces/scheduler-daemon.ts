@@ -18,8 +18,11 @@ import { WebClient } from '@slack/web-api';
 import { ScheduleStore, type StoredSchedule } from '../core/schedule-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
+import { createLogger } from '../utils/logger.js';
 
 config();
+
+const logger = createLogger('Scheduler');
 
 // 取得環境設定
 const env = detectEnvironment();
@@ -71,8 +74,8 @@ function isTokenExpiredError(stdout: string, stderr: string): boolean {
  */
 async function sendToSlack(message: string): Promise<void> {
   if (!slackClient || !slackChannel) {
-    console.log('[Scheduler] Slack not configured, skipping notification');
-    console.log('[Scheduler] Message:', message);
+    logger.info('Slack not configured, skipping notification');
+    logger.info('Message:', message);
     return;
   }
 
@@ -82,9 +85,9 @@ async function sendToSlack(message: string): Promise<void> {
       text: message,
       mrkdwn: true,
     });
-    console.log('[Scheduler] Sent to Slack');
+    logger.info('Sent to Slack');
   } catch (error) {
-    console.error('[Scheduler] Failed to send to Slack:', error);
+    logger.error('Failed to send to Slack:', error);
   }
 }
 
@@ -96,7 +99,7 @@ async function executeClaudePrompt(prompt: string): Promise<ClaudeExecutionResul
     const claudePath = env.claudePath;
     const startTime = Date.now();
 
-    console.log(`[Scheduler] Running: ${claudePath} --print "${prompt.substring(0, 80)}..."`);
+    logger.info(`Running: ${claudePath} --print "${prompt.substring(0, 80)}..."`);
 
     // 建立環境變數
     const spawnEnv: Record<string, string> = {
@@ -126,12 +129,12 @@ async function executeClaudePrompt(prompt: string): Promise<ClaudeExecutionResul
     child.stderr.on('data', (data) => {
       stderr += data.toString();
       // 即時輸出 stderr 以便追蹤進度
-      console.error(`[Scheduler] Claude stderr: ${data.toString().trim()}`);
+      logger.error(`Claude stderr: ${data.toString().trim()}`);
     });
 
     const timeout = setTimeout(() => {
       const elapsed = Math.round((Date.now() - startTime) / 1000);
-      console.error(`[Scheduler] Timeout after ${elapsed}s, stdout length: ${stdout.length}, stderr length: ${stderr.length}`);
+      logger.error(`Timeout after ${elapsed}s, stdout length: ${stdout.length}, stderr length: ${stderr.length}`);
       child.kill('SIGTERM');
       resolve({
         success: false,
@@ -147,7 +150,7 @@ async function executeClaudePrompt(prompt: string): Promise<ClaudeExecutionResul
       clearTimeout(timeout);
 
       if (stderr) {
-        console.error('[Scheduler] Claude stderr:', stderr);
+        logger.error('Claude stderr:', stderr);
       }
 
       if (code === 0) {
@@ -159,9 +162,9 @@ async function executeClaudePrompt(prompt: string): Promise<ClaudeExecutionResul
           exitCode: code,
         });
       } else {
-        console.error(`[Scheduler] Claude exited with code ${code}`);
-        console.error('[Scheduler] stdout:', stdout);
-        console.error('[Scheduler] stderr:', stderr);
+        logger.error(`Claude exited with code ${code}`);
+        logger.error('stdout:', stdout);
+        logger.error('stderr:', stderr);
         resolve({
           success: false,
           output: '',
@@ -191,7 +194,7 @@ async function executeClaudePrompt(prompt: string): Promise<ClaudeExecutionResul
  * 執行排程任務
  */
 async function executeSchedule(schedule: StoredSchedule): Promise<void> {
-  console.log(`[Scheduler] Executing: ${schedule.name} (${schedule.id})`);
+  logger.info(`Executing: ${schedule.name} (${schedule.id})`);
 
   const startTime = new Date();
   const tokenService = getTokenRefreshService();
@@ -208,7 +211,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     ].join('\n');
 
     await sendToSlack(message);
-    console.error(`[Scheduler] Failed: ${schedule.name} - Token needs relogin`);
+    logger.error(`Failed: ${schedule.name} - Token needs relogin`);
     return;
   }
 
@@ -217,15 +220,15 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
 
   // 3. 如果失敗且是 token 問題，嘗試刷新並重試
   if (!result.success && isTokenExpiredError(result.stdout, result.stderr)) {
-    console.log('[Scheduler] Token expired during execution, refreshing and retrying...');
+    logger.info('Token expired during execution, refreshing and retrying...');
 
     const refreshResult = await tokenService.refreshToken();
     if (refreshResult.success) {
-      console.log('[Scheduler] Token refreshed, retrying execution...');
+      logger.info('Token refreshed, retrying execution...');
       // 重試一次
       result = await executeClaudePrompt(schedule.prompt);
     } else {
-      console.error('[Scheduler] Token refresh failed:', refreshResult.message);
+      logger.error('Token refresh failed:', refreshResult.message);
     }
   }
 
@@ -240,7 +243,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     ].join('\n');
 
     await sendToSlack(message);
-    console.log(`[Scheduler] Completed: ${schedule.name}`);
+    logger.info(`Completed: ${schedule.name}`);
   } else {
     const errorMsg = result.error?.message || 'Unknown error';
 
@@ -252,7 +255,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     ].join('\n');
 
     await sendToSlack(message);
-    console.error(`[Scheduler] Failed: ${schedule.name}`, result.error);
+    logger.error(`Failed: ${schedule.name}`, result.error);
   }
 }
 
@@ -268,7 +271,7 @@ function startSchedule(schedule: StoredSchedule): void {
   }
 
   if (!cron.validate(schedule.cronExpression)) {
-    console.error(`[Scheduler] Invalid cron for ${schedule.name}: ${schedule.cronExpression}`);
+    logger.error(`Invalid cron for ${schedule.name}: ${schedule.cronExpression}`);
     return;
   }
 
@@ -281,7 +284,7 @@ function startSchedule(schedule: StoredSchedule): void {
   );
 
   activeTasks.set(schedule.id, task);
-  console.log(`[Scheduler] Started: ${schedule.name} (${schedule.cronExpression})`);
+  logger.info(`Started: ${schedule.name} (${schedule.cronExpression})`);
 }
 
 /**
@@ -299,7 +302,7 @@ function stopSchedule(id: string): void {
  * 重新載入所有排程
  */
 async function reloadSchedules(): Promise<void> {
-  console.log('[Scheduler] Reloading schedules...');
+  logger.info('Reloading schedules...');
 
   // 停止所有現有任務
   for (const task of activeTasks.values()) {
@@ -311,7 +314,7 @@ async function reloadSchedules(): Promise<void> {
   await store.load();
   const schedules = store.getAll();
 
-  console.log(`[Scheduler] Found ${schedules.length} schedule(s)`);
+  logger.info(`Found ${schedules.length} schedule(s)`);
 
   // 啟動所有已啟用的排程
   for (const schedule of schedules) {
@@ -320,20 +323,20 @@ async function reloadSchedules(): Promise<void> {
     }
   }
 
-  console.log(`[Scheduler] Active schedules: ${activeTasks.size}`);
+  logger.info(`Active schedules: ${activeTasks.size}`);
 }
 
 /**
  * 主程式
  */
 async function main(): Promise<void> {
-  console.log('[Scheduler] Starting scheduler daemon...');
-  console.log(`[Scheduler] Timezone: ${timezone}`);
+  logger.info('Starting scheduler daemon...');
+  logger.info(`Timezone: ${timezone}`);
 
   if (slackClient && slackChannel) {
-    console.log(`[Scheduler] Slack channel: ${slackChannel}`);
+    logger.info(`Slack channel: ${slackChannel}`);
   } else {
-    console.log('[Scheduler] Slack not configured (SLACK_BOT_TOKEN or SLACK_DEFAULT_CHANNEL missing)');
+    logger.info('Slack not configured (SLACK_BOT_TOKEN or SLACK_DEFAULT_CHANNEL missing)');
   }
 
   // 初始化 Token 刷新服務
@@ -348,7 +351,7 @@ async function main(): Promise<void> {
 
   // 啟動 Token 刷新服務
   tokenRefreshService.start();
-  console.log('[Scheduler] Token refresh service started');
+  logger.info('Token refresh service started');
 
   // 初始化 store
   await store.init();
@@ -358,15 +361,15 @@ async function main(): Promise<void> {
 
   // 監控檔案變更
   await store.startWatching(() => {
-    console.log('[Scheduler] Schedule file changed, reloading...');
-    reloadSchedules().catch(console.error);
+    logger.info('Schedule file changed, reloading...');
+    reloadSchedules().catch((err) => logger.error('Reload failed:', err));
   });
 
-  console.log('[Scheduler] Daemon running. Press Ctrl+C to stop.');
+  logger.info('Daemon running. Press Ctrl+C to stop.');
 
   // 優雅關閉
   process.on('SIGINT', () => {
-    console.log('\n[Scheduler] Shutting down...');
+    logger.info('Shutting down...');
     tokenRefreshService.stop();
     store.stopWatching();
     for (const task of activeTasks.values()) {
@@ -376,7 +379,7 @@ async function main(): Promise<void> {
   });
 
   process.on('SIGTERM', () => {
-    console.log('[Scheduler] Received SIGTERM, shutting down...');
+    logger.info('Received SIGTERM, shutting down...');
     tokenRefreshService.stop();
     store.stopWatching();
     for (const task of activeTasks.values()) {
@@ -387,6 +390,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('[Scheduler] Fatal error:', error);
+  logger.error('Fatal error:', error);
   process.exit(1);
 });

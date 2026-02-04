@@ -17,6 +17,9 @@ import { readFile, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { detectEnvironment } from './env-detect.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('TokenRefresh');
 
 // OAuth 設定
 const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
@@ -83,12 +86,12 @@ export class ClaudeTokenRefreshService {
    * 發送通知
    */
   private async notify(message: string): Promise<void> {
-    console.log(`[TokenRefresh] ${message}`);
+    logger.info(message);
     if (this.notificationCallback) {
       try {
         await this.notificationCallback(message);
       } catch (error) {
-        console.error('[TokenRefresh] Failed to send notification:', error);
+        logger.error('Failed to send notification:', error);
       }
     }
   }
@@ -98,7 +101,7 @@ export class ClaudeTokenRefreshService {
    */
   private async readCredentials(): Promise<ClaudeCredentials | null> {
     if (!existsSync(this.credentialsPath)) {
-      console.log('[TokenRefresh] Credentials file not found:', this.credentialsPath);
+      logger.info('Credentials file not found:', this.credentialsPath);
       return null;
     }
 
@@ -106,7 +109,7 @@ export class ClaudeTokenRefreshService {
       const content = await readFile(this.credentialsPath, 'utf-8');
       return JSON.parse(content) as ClaudeCredentials;
     } catch (error) {
-      console.error('[TokenRefresh] Failed to read credentials:', error);
+      logger.error('Failed to read credentials:', error);
       return null;
     }
   }
@@ -117,9 +120,9 @@ export class ClaudeTokenRefreshService {
   private async writeCredentials(credentials: ClaudeCredentials): Promise<void> {
     try {
       await writeFile(this.credentialsPath, JSON.stringify(credentials, null, 2), 'utf-8');
-      console.log('[TokenRefresh] Credentials updated successfully');
+      logger.info('Credentials updated successfully');
     } catch (error) {
-      console.error('[TokenRefresh] Failed to write credentials:', error);
+      logger.error('Failed to write credentials:', error);
       throw error;
     }
   }
@@ -194,7 +197,7 @@ export class ClaudeTokenRefreshService {
       };
     }
 
-    console.log('[TokenRefresh] Token expiring soon, refreshing...');
+    logger.info('Token expiring soon, refreshing...');
 
     try {
       // 呼叫 refresh API
@@ -250,7 +253,7 @@ export class ClaudeTokenRefreshService {
       }
 
       // 其他錯誤
-      console.error('[TokenRefresh] Refresh failed:', errorMessage);
+      logger.error('Refresh failed:', errorMessage);
 
       // 連續失敗多次時發送通知
       if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
@@ -330,13 +333,13 @@ export class ClaudeTokenRefreshService {
    */
   start(): void {
     if (this.isRunning) {
-      console.log('[TokenRefresh] Service already running');
+      logger.info('Service already running');
       return;
     }
 
-    console.log('[TokenRefresh] Starting token refresh service');
-    console.log(`[TokenRefresh] Check interval: ${CHECK_INTERVAL_MS / 60000} minutes`);
-    console.log(`[TokenRefresh] Refresh threshold: ${REFRESH_BEFORE_EXPIRY_MS / 60000} minutes before expiry`);
+    logger.info('Starting token refresh service');
+    logger.info(`Check interval: ${CHECK_INTERVAL_MS / 60000} minutes`);
+    logger.info(`Refresh threshold: ${REFRESH_BEFORE_EXPIRY_MS / 60000} minutes before expiry`);
 
     this.isRunning = true;
 
@@ -353,23 +356,23 @@ export class ClaudeTokenRefreshService {
    * 執行檢查
    */
   private async performCheck(): Promise<void> {
-    console.log('[TokenRefresh] Checking token status...');
+    logger.info('Checking token status...');
 
     const status = await this.getTokenStatus();
 
     if (!status.hasCredentials) {
-      console.log('[TokenRefresh] No credentials found, skipping check');
+      logger.info('No credentials found, skipping check');
       return;
     }
 
-    console.log(
-      `[TokenRefresh] Token status: expires in ${status.remainingMinutes} minutes, ` +
+    logger.info(
+      `Token status: expires in ${status.remainingMinutes} minutes, ` +
         `expired=${status.isExpired}, expiringSoon=${status.isExpiringSoon}`
     );
 
     if (status.isExpired || status.isExpiringSoon) {
       const result = await this.refreshToken();
-      console.log(`[TokenRefresh] Refresh result: ${result.message}`);
+      logger.info(`Refresh result: ${result.message}`);
     }
   }
 
@@ -382,7 +385,7 @@ export class ClaudeTokenRefreshService {
       this.checkInterval = null;
     }
     this.isRunning = false;
-    console.log('[TokenRefresh] Service stopped');
+    logger.info('Service stopped');
   }
 
   /**

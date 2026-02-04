@@ -56,6 +56,8 @@ src/
 │   ├── call-service.ts   # 呼叫服務
 │   ├── manage-schedule.ts # 管理排程
 │   └── index.ts          # Tools 匯出
+├── utils/
+│   └── logger.ts         # 統一 Logger（含時間戳記）
 ├── index.ts              # 主程式進入點
 └── test-ha.ts            # HA 連線測試腳本
 
@@ -144,6 +146,27 @@ SLACK_DEFAULT_CHANNEL=C...
 - `ensureValidToken()` - 確保 token 有效（執行 Claude CLI 前呼叫）
 - `getTokenStatus()` - 取得目前 token 狀態
 - `setNotificationCallback()` - 設定通知回呼（用於 Slack 通知）
+
+### Logger (utils/logger.ts)
+
+統一的 log 工具，為所有輸出加入時間戳記，方便 debug 追蹤。
+
+```typescript
+import { createLogger } from './utils/logger.js';
+
+const logger = createLogger('MyModule');
+
+logger.info('Starting...');        // [2026-02-04 10:30:15] [MyModule] Starting...
+logger.error('Failed:', error);    // [2026-02-04 10:30:15] [MyModule] Failed: ...
+logger.warn('Warning message');    // [2026-02-04 10:30:15] [MyModule] Warning message
+logger.debug('Debug info');        // 僅在 DEBUG 環境變數啟用時輸出
+logger.raw('User message');        // User message（無時間戳，給 user-facing 輸出用）
+```
+
+MCP Server 需使用 stderr（stdout 保留給 MCP 協議）：
+```typescript
+const logger = createLogger('MCP', { useStderr: true });
+```
 
 ## Claude Tools
 
@@ -322,7 +345,8 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ## 注意事項
 
 - 修改 TypeScript 後需要 `npm run build` 重新編譯
-- MCP Server 使用 stdio 通訊，不要在裡面用 console.log（用 console.error）
+- 所有 log 輸出請使用 `createLogger()` 建立的 logger，確保有時間戳記
+- MCP Server 使用 stdio 通訊，logger 需設定 `{ useStderr: true }`
 - Slack Bot 使用 Socket Mode，不需要公開 endpoint
 - 排程使用 Asia/Taipei 時區
 - 排程服務需要 `claude` CLI 可用且已登入

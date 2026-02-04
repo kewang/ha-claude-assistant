@@ -6,9 +6,11 @@
  */
 
 import { config } from 'dotenv';
+import { createLogger } from './utils/logger.js';
 
 config();
 
+const logger = createLogger('Main');
 const mode = process.argv[2] || 'cli';
 
 async function main() {
@@ -28,7 +30,7 @@ async function main() {
     case 'help':
     case '-h':
     case '--help':
-      console.log(`
+      logger.raw(`
 HA Claude Assistant - Claude AI 驅動的智慧家庭助理
 
 Usage: npm start [mode]
@@ -47,14 +49,14 @@ Other commands:
       break;
 
     default:
-      console.error(`Unknown mode: ${mode}`);
-      console.log('Use "npm start help" for usage information');
+      logger.error(`Unknown mode: ${mode}`);
+      logger.raw('Use "npm start help" for usage information');
       process.exit(1);
   }
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  logger.error('Fatal error:', error);
   process.exit(1);
 });
 

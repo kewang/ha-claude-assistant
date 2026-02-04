@@ -9,8 +9,11 @@ import { createInterface } from 'readline';
 import { spawn } from 'child_process';
 import { config } from 'dotenv';
 import { HAClient } from '../core/ha-client.js';
+import { createLogger } from '../utils/logger.js';
 
 config();
+
+const logger = createLogger('CLI');
 
 const WELCOME_MESSAGE = `
 ╔══════════════════════════════════════════════════════════╗
@@ -75,7 +78,7 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
         resolve(stdout.trim());
       } else {
         if (stderr) {
-          console.error('[CLI] Claude stderr:', stderr);
+          logger.error('Claude stderr:', stderr);
         }
         reject(new Error(`Claude 執行失敗 (exit code: ${code})`));
       }
@@ -106,7 +109,7 @@ class CLI {
 
     switch (command) {
       case '/help':
-        console.log(HELP_MESSAGE);
+        logger.raw(HELP_MESSAGE);
         return true;
 
       case '/status':
@@ -124,14 +127,14 @@ class CLI {
   }
 
   private async checkStatus(): Promise<void> {
-    console.log('檢查 Home Assistant 連線...');
+    logger.raw('檢查 Home Assistant 連線...');
     try {
       const connection = await this.haClient.autoConnect();
       const result = await this.haClient.checkConnection();
-      console.log(`✓ 連線成功 (${connection.type === 'internal' ? '內網' : '外網'}): ${result.message}`);
-      console.log(`  URL: ${connection.url}\n`);
+      logger.raw(`✓ 連線成功 (${connection.type === 'internal' ? '內網' : '外網'}): ${result.message}`);
+      logger.raw(`  URL: ${connection.url}\n`);
     } catch (error) {
-      console.error(`✗ 連線失敗: ${error instanceof Error ? error.message : error}\n`);
+      logger.raw(`✗ 連線失敗: ${error instanceof Error ? error.message : error}\n`);
     }
   }
 
@@ -153,13 +156,13 @@ class CLI {
 
     // 處理一般對話
     this.isProcessing = true;
-    console.log('\n思考中...\n');
+    logger.raw('\n思考中...\n');
 
     try {
       const response = await executeClaudePrompt(trimmedInput);
-      console.log(`🤖 ${response}\n`);
+      logger.raw(`🤖 ${response}\n`);
     } catch (error) {
-      console.error(`\n❌ 錯誤: ${error instanceof Error ? error.message : error}\n`);
+      logger.raw(`\n❌ 錯誤: ${error instanceof Error ? error.message : error}\n`);
     } finally {
       this.isProcessing = false;
     }
@@ -173,13 +176,13 @@ class CLI {
   }
 
   private shutdown(): void {
-    console.log('\n👋 再見！\n');
+    logger.raw('\n👋 再見！\n');
     this.rl.close();
     process.exit(0);
   }
 
   async start(): Promise<void> {
-    console.log(WELCOME_MESSAGE);
+    logger.raw(WELCOME_MESSAGE);
 
     // 初始檢查連線
     await this.checkStatus();
@@ -202,13 +205,13 @@ class CLI {
 
 // 單次指令模式
 async function singleCommand(command: string): Promise<void> {
-  console.log('處理中...\n');
+  logger.raw('處理中...\n');
 
   try {
     const response = await executeClaudePrompt(command);
-    console.log(response);
+    logger.raw(response);
   } catch (error) {
-    console.error(`錯誤: ${error instanceof Error ? error.message : error}`);
+    logger.raw(`錯誤: ${error instanceof Error ? error.message : error}`);
     process.exit(1);
   }
 }
@@ -225,7 +228,7 @@ async function main() {
 
   // 處理參數
   if (args.includes('-h') || args.includes('--help')) {
-    console.log(`
+    logger.raw(`
 Usage: ha-claude [options] [command]
 
 Options:
@@ -241,7 +244,7 @@ Examples:
   }
 
   if (args.includes('-v') || args.includes('--version')) {
-    console.log('ha-claude-assistant v1.0.0');
+    logger.raw('ha-claude-assistant v1.0.0');
     return;
   }
 
@@ -251,6 +254,6 @@ Examples:
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  logger.error('Fatal error:', error);
   process.exit(1);
 });

@@ -11,8 +11,12 @@ import { executeListEntities, type ListEntitiesInput } from '../tools/list-entit
 import { executeGetState, type GetStateInput } from '../tools/get-states.js';
 import { executeCallService, type CallServiceInput } from '../tools/call-service.js';
 import { executeManageSchedule, type ManageScheduleInput } from '../tools/manage-schedule.js';
+import { createLogger } from '../utils/logger.js';
 
 config();
+
+// MCP Server 需要使用 stderr，因為 stdout 保留給 MCP 協議
+const logger = createLogger('MCP', { useStderr: true });
 
 const server = new Server(
   {
@@ -31,17 +35,17 @@ let haClient: HAClient;
 try {
   haClient = new HAClient();
 } catch (error) {
-  console.error('Failed to initialize HA client:', error);
+  logger.error('Failed to initialize HA client:', error);
   process.exit(1);
 }
 
 // 自動偵測連線（在背景執行，不阻塞 MCP 啟動）
 haClient.autoConnect()
   .then((connection) => {
-    console.error(`HA connected (${connection.type}): ${connection.url}`);
+    logger.info(`HA connected (${connection.type}): ${connection.url}`);
   })
   .catch((error) => {
-    console.error('HA auto-connect failed:', error instanceof Error ? error.message : error);
+    logger.error('HA auto-connect failed:', error instanceof Error ? error.message : error);
   });
 
 // 列出可用工具
@@ -224,10 +228,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('HA Claude Assistant MCP Server running on stdio');
+  logger.info('HA Claude Assistant MCP Server running on stdio');
 }
 
 main().catch((error) => {
-  console.error('Failed to start MCP server:', error);
+  logger.error('Failed to start MCP server:', error);
   process.exit(1);
 });
