@@ -19,6 +19,11 @@ config();
 
 const logger = createLogger('Slack');
 
+// 重連設定
+const MAX_RECONNECT_ATTEMPTS = 10;
+const INITIAL_RECONNECT_DELAY_MS = 1000;
+const MAX_RECONNECT_DELAY_MS = 60000;
+
 // 取得環境設定
 const env = detectEnvironment();
 
@@ -115,6 +120,8 @@ class SlackBot {
   private app: bolt.App;
   private haClient: HAClient;
   private defaultChannelId?: string;
+  private reconnectAttempts = 0;
+  private reconnecting = false;
 
   constructor() {
     const botToken = process.env.SLACK_BOT_TOKEN;
@@ -135,8 +142,90 @@ class SlackBot {
 
     this.defaultChannelId = process.env.SLACK_DEFAULT_CHANNEL;
 
+    this.setupSocketModeHandlers();
     this.setupEventHandlers();
     this.setupCommands();
+  }
+
+  /**
+   * 設定 SocketModeClient 事件處理，處理斷線和重連
+   */
+  private setupSocketModeHandlers(): void {
+    const socketModeClient = (this.app as unknown as { receiver: { client: unknown } }).receiver?.client;
+
+    if (!socketModeClient) {
+      logger.warn('無法取得 SocketModeClient，跳過重連處理設定');
+      return;
+    }
+
+    const client = socketModeClient as {
+      on: (event: string, handler: (...args: unknown[]) => void) => void;
+    };
+
+    // 監聽連線成功事件
+    client.on('connected', () => {
+      logger.info('Socket Mode 連線成功');
+      this.reconnectAttempts = 0;
+      this.reconnecting = false;
+    });
+
+    // 監聽斷線事件
+    client.on('disconnected', () => {
+      logger.warn('Socket Mode 連線已斷開');
+      this.handleDisconnect();
+    });
+
+    // 監聽錯誤事件
+    client.on('error', (error: unknown) => {
+      logger.error('Socket Mode 錯誤:', error);
+    });
+
+    // 監聽無法連線事件
+    client.on('unable_to_socket_mode_start', (error: unknown) => {
+      logger.error('無法啟動 Socket Mode:', error);
+      this.handleDisconnect();
+    });
+  }
+
+  /**
+   * 處理斷線並嘗試重連
+   */
+  private async handleDisconnect(): Promise<void> {
+    if (this.reconnecting) {
+      logger.debug('已在重連中，跳過');
+      return;
+    }
+
+    if (this.reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      logger.error(`已達最大重連次數 (${MAX_RECONNECT_ATTEMPTS})，放棄重連`);
+      await this.sendNotification(`⚠️ Slack Bot 重連失敗：已嘗試 ${MAX_RECONNECT_ATTEMPTS} 次，請檢查網路連線或重新啟動服務`);
+      return;
+    }
+
+    this.reconnecting = true;
+    this.reconnectAttempts++;
+
+    // 計算指數退避延遲
+    const delay = Math.min(
+      INITIAL_RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts - 1),
+      MAX_RECONNECT_DELAY_MS
+    );
+
+    logger.info(`將在 ${delay / 1000} 秒後嘗試重連 (第 ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} 次)`);
+
+    await new Promise(resolve => setTimeout(resolve, delay));
+
+    try {
+      await this.app.start();
+      logger.info('重連成功');
+      this.reconnecting = false;
+      this.reconnectAttempts = 0;
+    } catch (error) {
+      logger.error('重連失敗:', error);
+      this.reconnecting = false;
+      // 繼續嘗試重連
+      this.handleDisconnect();
+    }
   }
 
   private setupEventHandlers(): void {
@@ -321,6 +410,39 @@ async function main() {
     logger.info('Received SIGTERM, shutting down...');
     await bot.stop();
     process.exit(0);
+  });
+
+  // Process-level 錯誤處理：捕捉 @slack/socket-mode 狀態機錯誤
+  process.on('uncaughtException', async (error) => {
+    const errorMessage = error.message || '';
+
+    // 檢測是否為 @slack/socket-mode 狀態機錯誤
+    if (errorMessage.includes("Unhandled event") && errorMessage.includes("in state")) {
+      logger.warn(`捕捉到 Socket Mode 狀態機錯誤: ${errorMessage}`);
+      logger.info('嘗試恢復連線...');
+      // 狀態機錯誤通常是暫時性的，讓 SocketModeClient 的內建重連機制處理
+      // 如果持續發生，handleDisconnect 會被觸發
+      return;
+    }
+
+    // 其他致命錯誤
+    logger.error('Uncaught exception:', error);
+    await bot.stop();
+    process.exit(1);
+  });
+
+  process.on('unhandledRejection', async (reason, promise) => {
+    const errorMessage = reason instanceof Error ? reason.message : String(reason);
+
+    // 檢測是否為 @slack/socket-mode 狀態機錯誤
+    if (errorMessage.includes("Unhandled event") && errorMessage.includes("in state")) {
+      logger.warn(`捕捉到 Socket Mode 狀態機錯誤 (rejection): ${errorMessage}`);
+      logger.info('嘗試恢復連線...');
+      return;
+    }
+
+    // 其他未處理的 rejection
+    logger.error('Unhandled rejection at:', promise, 'reason:', reason);
   });
 
   await bot.start();

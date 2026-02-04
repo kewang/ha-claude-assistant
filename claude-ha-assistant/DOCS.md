@@ -122,6 +122,16 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 2. 確認 Slack App 已啟用 Socket Mode
 3. 確認 Bot 已安裝到 Workspace
 
+### Slack 連線斷開
+
+系統內建自動重連機制：
+
+- **自動重連**：連線斷開時會自動嘗試重連，使用指數退避策略（1s → 2s → 4s → ... → 60s）
+- **重連次數**：最多嘗試 10 次，超過後發送 Slack 通知
+- **狀態機錯誤**：系統會捕捉 `@slack/socket-mode` 套件的已知錯誤，防止程序崩潰
+
+如果日誌顯示「已達最大重連次數」，請檢查網路連線並重啟 Add-on。
+
 ### 無法控制設備
 
 1. 確認 Home Assistant API 正常運作

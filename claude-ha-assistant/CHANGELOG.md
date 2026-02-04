@@ -5,6 +5,18 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 版本號遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [1.1.2] - 2026-02-04
+
+### 修復
+- **Slack Bot 連線穩定性**：修復 `@slack/socket-mode` 狀態機錯誤導致程序崩潰的問題
+  - 新增自動重連機制，使用指數退避策略（1s → 2s → 4s → ... → 60s）
+  - 最多嘗試 10 次重連，超過後發送 Slack 通知
+  - 捕捉 `Unhandled event 'server explicit disconnect' in state 'connecting'` 錯誤
+
+### 改進
+- **測試指令優化**：`npm test` 現在會自動執行並退出，不再需要按 `q` 結束
+  - 新增 `npm run test:watch` 供 watch 模式使用
+
 ## [1.1.1] - 2026-02-04
 
 ### 改進

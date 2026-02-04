@@ -242,14 +242,14 @@ await store.create({
 ## 測試
 
 ```bash
-# 執行所有測試
+# 執行所有測試（自動執行並退出）
 npm test
+
+# 監看模式（檔案變更時自動重跑）
+npm run test:watch
 
 # 執行單一測試檔
 npm test -- tests/ha-client.test.ts
-
-# 監看模式
-npm test -- --watch
 ```
 
 ## MCP 設定
@@ -360,12 +360,40 @@ docker exec -it $(docker ps -qf name=claude_ha_assistant) bash
 su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ```
 
+## Slack Bot 自動重連機制
+
+Slack Bot 使用 Socket Mode 連線，可能因網路問題或 Slack 伺服器斷線而中斷。系統內建自動重連機制來處理這些情況。
+
+### 重連參數
+
+```typescript
+const MAX_RECONNECT_ATTEMPTS = 10;        // 最大重連次數
+const INITIAL_RECONNECT_DELAY_MS = 1000;  // 初始延遲 1 秒
+const MAX_RECONNECT_DELAY_MS = 60000;     // 最大延遲 60 秒
+```
+
+### 運作方式
+
+1. **事件監聽**：監聽 SocketModeClient 的 `connected`、`disconnected`、`error` 事件
+2. **指數退避**：重連延遲從 1 秒開始，每次翻倍（1s → 2s → 4s → 8s → ... → 60s）
+3. **次數限制**：超過 10 次重連失敗後放棄，並發送 Slack 通知
+4. **狀態機錯誤處理**：捕捉 `@slack/socket-mode` 套件的狀態機異常，防止程序崩潰
+
+### 狀態機錯誤
+
+`@slack/socket-mode` 套件有已知的狀態機缺陷，在某些情況下會拋出：
+```
+Error: Unhandled event 'server explicit disconnect' in state 'connecting'.
+```
+
+系統會在 process level 捕捉這類錯誤並記錄，而不會導致程序崩潰。
+
 ## 注意事項
 
 - 修改 TypeScript 後需要 `npm run build` 重新編譯
 - 所有 log 輸出請使用 `createLogger()` 建立的 logger，確保有時間戳記
 - MCP Server 使用 stdio 通訊，logger 需設定 `{ useStderr: true }`
-- Slack Bot 使用 Socket Mode，不需要公開 endpoint
+- Slack Bot 使用 Socket Mode，不需要公開 endpoint，內建自動重連機制
 - 排程使用 Asia/Taipei 時區
 - 排程服務需要 `claude` CLI 可用且已登入
 

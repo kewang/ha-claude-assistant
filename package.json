@@ -15,7 +15,8 @@
     "mcp": "node dist/interfaces/mcp-server.js",
     "slack": "node dist/interfaces/slack-bot.js",
     "scheduler": "node dist/interfaces/scheduler-daemon.js",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:ha": "node dist/test-ha.js",
     "addon:build": "npm run build && echo 'Add-on build ready. Use docker build in claude-ha-assistant/'",
     "addon:docker": "docker build -t claude-ha-assistant -f claude-ha-assistant/Dockerfile ."
