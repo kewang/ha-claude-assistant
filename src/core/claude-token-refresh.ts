@@ -18,12 +18,9 @@ import { existsSync } from 'fs';
 import path from 'path';
 import { detectEnvironment } from './env-detect.js';
 import { createLogger } from '../utils/logger.js';
+import { getOAuthConfig, type OAuthConfig } from './claude-oauth-config.js';
 
 const logger = createLogger('TokenRefresh');
-
-// OAuth 設定
-const OAUTH_TOKEN_URL = 'https://console.anthropic.com/v1/oauth/token';
-const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 
 // 刷新策略設定
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 分鐘
@@ -148,7 +145,13 @@ export class ClaudeTokenRefreshService {
    * 呼叫 OAuth API 刷新 token
    */
   private async callRefreshApi(refreshToken: string): Promise<TokenRefreshResponse> {
-    const response = await fetch(OAUTH_TOKEN_URL, {
+    const oauthConfig = getOAuthConfig();
+
+    logger.debug(`Using OAuth config (source: ${oauthConfig.source}):`);
+    logger.debug(`  TOKEN_URL: ${oauthConfig.tokenUrl}`);
+    logger.debug(`  CLIENT_ID: ${oauthConfig.clientId}`);
+
+    const response = await fetch(oauthConfig.tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -156,7 +159,7 @@ export class ClaudeTokenRefreshService {
       body: JSON.stringify({
         grant_type: 'refresh_token',
         refresh_token: refreshToken,
-        client_id: CLIENT_ID,
+        client_id: oauthConfig.clientId,
       }),
     });
 

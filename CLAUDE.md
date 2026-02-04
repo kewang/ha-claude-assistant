@@ -44,7 +44,8 @@ src/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
 │   ├── schedule-store.ts # 排程持久化儲存
 │   ├── env-detect.ts     # 環境偵測（Add-on / 一般環境）
-│   └── claude-token-refresh.ts # OAuth Token 自動刷新
+│   ├── claude-token-refresh.ts # OAuth Token 自動刷新
+│   └── claude-oauth-config.ts  # OAuth 設定動態提取
 ├── interfaces/
 │   ├── cli.ts            # CLI 互動介面（使用 Claude CLI）
 │   ├── mcp-server.ts     # MCP Server（stdio）
@@ -146,6 +147,23 @@ SLACK_DEFAULT_CHANNEL=C...
 - `ensureValidToken()` - 確保 token 有效（執行 Claude CLI 前呼叫）
 - `getTokenStatus()` - 取得目前 token 狀態
 - `setNotificationCallback()` - 設定通知回呼（用於 Slack 通知）
+
+### getOAuthConfig (claude-oauth-config.ts)
+
+動態取得 Claude OAuth 設定（CLIENT_ID 和 TOKEN_URL）。
+
+優先順序：
+1. **從 Claude CLI binary 提取** - 使用 `strings` 命令搜尋，自動與 CLI 版本同步
+2. **Fallback** - 提取失敗時使用預設值
+
+```typescript
+import { getOAuthConfig } from './core/claude-oauth-config.js';
+
+const config = getOAuthConfig();
+// config.tokenUrl  - OAuth token endpoint
+// config.clientId  - OAuth client ID
+// config.source    - 'binary' | 'fallback'
+```
 
 ### Logger (utils/logger.ts)
 

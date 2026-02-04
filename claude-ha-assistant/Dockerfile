@@ -19,7 +19,8 @@ RUN apk add --no-cache \
     jq \
     git \
     libstdc++ \
-    su-exec
+    su-exec \
+    binutils
 
 # 建立非 root 用戶（用於執行 claude CLI）
 RUN addgroup -g 1000 claude && \
