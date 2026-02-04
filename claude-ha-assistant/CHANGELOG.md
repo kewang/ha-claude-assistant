@@ -5,6 +5,18 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 版本號遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [1.1.1] - 2026-02-04
+
+### 改進
+- **動態 OAuth 設定提取**：自動從 Claude CLI binary 提取 CLIENT_ID 和 TOKEN_URL
+  - 使用 `strings` 命令從 binary 搜尋，自動與 CLI 版本同步
+  - 提取失敗時使用 fallback 值確保穩定性
+- **修正 TOKEN_URL**：更新為正確的 `platform.claude.com` endpoint
+
+### 技術變更
+- 新增 `binutils` 套件（提供 `strings` 命令）
+- 新增 `claude-oauth-config.ts` 模組處理動態設定提取
+
 ## [1.1.0] - 2025-02-03
 
 ### 新增
