@@ -269,8 +269,37 @@ Claude CLI 的 OAuth token 會定期過期：
 
 1. **定期檢查**：每 5 分鐘檢查 token 狀態
 2. **提前刷新**：在 access token 過期前 30 分鐘自動刷新
-3. **執行前檢查**：Slack Bot 在執行 Claude CLI 前會確保 token 有效
-4. **失敗通知**：refresh token 過期時發送 Slack 通知
+3. **執行前檢查**：Slack Bot 和 Scheduler 在執行 Claude CLI 前會確保 token 有效
+4. **執行時重試**：Scheduler 偵測到 token 過期錯誤時，會自動刷新並重試一次
+5. **失敗通知**：refresh token 過期時發送 Slack 通知
+
+### Scheduler Token 重試機制
+
+排程服務在執行任務時會處理 token 過期問題：
+
+```
+排程觸發
+    ↓
+ensureValidToken() ─ 執行前檢查
+    ├─ needsRelogin=true → 發送失敗通知 → 結束
+    ↓
+執行 Claude CLI
+    ├─ 成功 → 發送成功通知 → 結束
+    ↓
+    └─ 失敗
+         ├─ 不是 token 問題 → 發送失敗通知 → 結束
+         ↓
+         └─ 是 token 問題（401/authentication_error）
+              ↓
+         refreshToken() → 重試執行
+              ├─ 成功 → 發送成功通知 → 結束
+              └─ 失敗 → 發送失敗通知 → 結束
+```
+
+這個機制確保：
+- Token 過期時不會立即發送失敗通知
+- 自動嘗試刷新並重試，減少不必要的錯誤通知
+- 只在最終確定失敗時才通知用戶
 
 ### 用戶體驗
 
