@@ -121,7 +121,7 @@ After:  介面 → claude CLI → MCP Server → HAClient
 - [ ] 加入對話記憶持久化（目前重啟就會清除）
 
 ### 監控與日誌
-- [ ] 加入結構化日誌（pino 或 winston）
+- [x] 加入統一 Logger（`utils/logger.ts`，含時間戳記）
 - [ ] 錯誤追蹤與告警
 
 ### 部署
