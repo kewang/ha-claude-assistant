@@ -32,6 +32,11 @@ interface ClaudeCredentials {
     accessToken: string;
     refreshToken: string;
     expiresAt: string; // ISO date string
+    // OAuth 刷新時需要保留的額外欄位
+    rateLimitTier?: string;
+    scopes?: string[];
+    subscriptionType?: string;
+    [key: string]: unknown; // 允許其他未知欄位
   };
 }
 
@@ -209,8 +214,9 @@ export class ClaudeTokenRefreshService {
       // 計算新的過期時間
       const newExpiresAt = new Date(Date.now() + response.expires_in * 1000);
 
-      // 更新 credentials
+      // 更新 credentials（保留原有欄位如 rateLimitTier, scopes, subscriptionType）
       credentials.claudeAiOauth = {
+        ...credentials.claudeAiOauth,
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
         expiresAt: newExpiresAt.toISOString(),

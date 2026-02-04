@@ -5,6 +5,14 @@
 格式基於 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.0.0/)，
 版本號遵循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
+## [1.1.3] - 2026-02-04
+
+### 修復
+- **Token 刷新欄位丟失**：修復 OAuth token 刷新時覆蓋整個 credentials 物件的問題
+  - 刷新後現在會保留 `rateLimitTier`、`scopes`、`subscriptionType` 等必要欄位
+  - 使用 spread operator 進行部分更新，而非整個覆蓋
+  - 解決刷新後 Claude CLI 回報 `Invalid API key` 的問題
+
 ## [1.1.2] - 2026-02-04
 
 ### 修復
