@@ -1,6 +1,6 @@
 {
   "name": "ha-claude-assistant",
-  "version": "1.0.0",
+  "version": "1.1.4",
   "description": "Claude AI 驅動的智慧家庭助理，整合 Home Assistant",
   "type": "module",
   "main": "dist/index.js",
@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "version": "node scripts/sync-version.js && git add claude-ha-assistant/config.yaml",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
     "cli": "node dist/interfaces/cli.js",

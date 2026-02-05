@@ -77,6 +77,8 @@ claude-ha-assistant/      # Home Assistant Add-on
 
 tests/                    # Vitest 測試
 config/default.json       # 預設設定
+scripts/
+└── sync-version.js       # 版號同步腳本
 ```
 
 ## 架構說明
@@ -387,6 +389,49 @@ Error: Unhandled event 'server explicit disconnect' in state 'connecting'.
 ```
 
 系統會在 process level 捕捉這類錯誤並記錄，而不會導致程序崩潰。
+
+## 版號管理
+
+專案使用單一來源版號管理，`package.json` 為主要版本來源，其他檔案自動同步。
+
+### 同步的檔案
+
+| 檔案 | 用途 |
+|------|------|
+| `package.json` | Node.js 專案版本（主要來源） |
+| `claude-ha-assistant/config.yaml` | HA Add-on 版本 |
+
+### 更新版本
+
+使用 `npm version` 指令更新版本，會自動同步所有檔案：
+
+```bash
+# 更新 patch 版本 (1.1.4 → 1.1.5)
+npm version patch
+
+# 更新 minor 版本 (1.1.4 → 1.2.0)
+npm version minor
+
+# 更新 major 版本 (1.1.4 → 2.0.0)
+npm version major
+
+# 指定版本
+npm version 1.2.0
+```
+
+執行 `npm version` 會自動：
+1. 更新 `package.json` 版本
+2. 執行同步腳本，更新 `config.yaml`
+3. 建立 git commit
+4. 建立 git tag (v1.x.x)
+
+### 手動同步
+
+若需要手動同步版號（不建立 commit/tag）：
+
+```bash
+node scripts/sync-version.js
+```
 
 ## 注意事項
 

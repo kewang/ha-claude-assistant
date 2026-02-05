@@ -10,6 +10,7 @@ import { spawn } from 'child_process';
 import { config } from 'dotenv';
 import { HAClient } from '../core/ha-client.js';
 import { createLogger } from '../utils/logger.js';
+import { VERSION } from '../version.js';
 
 config();
 
@@ -244,7 +245,7 @@ Examples:
   }
 
   if (args.includes('-v') || args.includes('--version')) {
-    logger.raw('ha-claude-assistant v1.0.0');
+    logger.raw(`ha-claude-assistant v${VERSION}`);
     return;
   }
 

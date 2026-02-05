@@ -19,6 +19,7 @@ import { ScheduleStore, type StoredSchedule } from '../core/schedule-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 import { createLogger } from '../utils/logger.js';
+import { VERSION } from '../version.js';
 
 config();
 
@@ -330,7 +331,7 @@ async function reloadSchedules(): Promise<void> {
  * 主程式
  */
 async function main(): Promise<void> {
-  logger.info('Starting scheduler daemon...');
+  logger.info(`Starting scheduler daemon v${VERSION}...`);
   logger.info(`Timezone: ${timezone}`);
 
   if (slackClient && slackChannel) {

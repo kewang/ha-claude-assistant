@@ -12,6 +12,7 @@ import { executeGetState, type GetStateInput } from '../tools/get-states.js';
 import { executeCallService, type CallServiceInput } from '../tools/call-service.js';
 import { executeManageSchedule, type ManageScheduleInput } from '../tools/manage-schedule.js';
 import { createLogger } from '../utils/logger.js';
+import { VERSION } from '../version.js';
 
 config();
 
@@ -21,7 +22,7 @@ const logger = createLogger('MCP', { useStderr: true });
 const server = new Server(
   {
     name: 'ha-claude-assistant',
-    version: '1.0.0',
+    version: VERSION,
   },
   {
     capabilities: {
@@ -228,7 +229,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  logger.info('HA Claude Assistant MCP Server running on stdio');
+  logger.info(`HA Claude Assistant MCP Server v${VERSION} running on stdio`);
 }
 
 main().catch((error) => {

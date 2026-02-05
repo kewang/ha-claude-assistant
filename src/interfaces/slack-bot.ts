@@ -14,6 +14,7 @@ import { HAClient } from '../core/ha-client.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 import { createLogger } from '../utils/logger.js';
+import { VERSION } from '../version.js';
 
 config();
 
@@ -387,7 +388,7 @@ class SlackBot {
     }
 
     await this.app.start();
-    logger.info('Slack Bot 已啟動！');
+    logger.info(`Slack Bot v${VERSION} 已啟動！`);
   }
 
   async stop(): Promise<void> {
