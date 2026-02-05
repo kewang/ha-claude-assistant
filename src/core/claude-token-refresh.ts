@@ -365,16 +365,16 @@ export class ClaudeTokenRefreshService {
    * 執行檢查
    */
   private async performCheck(): Promise<void> {
-    logger.info('Checking token status...');
+    logger.debug('Checking token status...');
 
     const status = await this.getTokenStatus();
 
     if (!status.hasCredentials) {
-      logger.info('No credentials found, skipping check');
+      logger.debug('No credentials found, skipping check');
       return;
     }
 
-    logger.info(
+    logger.debug(
       `Token status: expires in ${status.remainingMinutes} minutes, ` +
         `expired=${status.isExpired}, expiringSoon=${status.isExpiringSoon}`
     );
