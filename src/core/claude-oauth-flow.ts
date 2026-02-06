@@ -80,7 +80,7 @@ export function buildAuthorizationUrl(codeChallenge: string, state: string): str
     response_type: 'code',
     client_id: oauthConfig.clientId,
     redirect_uri: REDIRECT_URI,
-    scope: 'user:inference org:inference',
+    scope: 'user:profile user:inference user:sessions:claude_code user:mcp_servers org:create_api_key',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
