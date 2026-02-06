@@ -201,11 +201,15 @@ echo "=========================================="
 echo "啟動服務..."
 echo "=========================================="
 
+# 取得 Supervisor 分配的 ingress port
+INGRESS_PORT=$(curl -s -H "Authorization: Bearer $SUPERVISOR_TOKEN" http://supervisor/addons/self/info | jq -r '.data.ingress_port')
+echo "Ingress port: $INGRESS_PORT"
+export WEB_UI_PORT="$INGRESS_PORT"
+
 # 啟動 Web UI（背景執行，ingress）
-echo "Starting Web UI server..."
+echo "Starting Web UI server on port $INGRESS_PORT..."
 node /app/dist/interfaces/web-ui.js &
 WEBUI_PID=$!
-echo "Web UI started (PID: $WEBUI_PID)"
 
 # 等待 Web UI 啟動
 sleep 2
