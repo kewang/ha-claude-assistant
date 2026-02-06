@@ -147,12 +147,17 @@ async function handleRequest(
     if (routePath === '/api/auth/callback' && method === 'POST') {
       // 接收授權碼，交換 Token
       const body = await parseBody(req);
-      const code = body.code as string;
+      let code = body.code as string;
       const state = body.state as string;
 
       if (!code || !state) {
         sendJson(res, { error: 'Missing code or state parameter' }, 400);
         return;
+      }
+
+      // Claude callback 頁面顯示的 code 格式為 "code#state"，需要移除 # 後面的部分
+      if (code.includes('#')) {
+        code = code.split('#')[0];
       }
 
       const tokens = await exchangeCodeForTokens(code, state);

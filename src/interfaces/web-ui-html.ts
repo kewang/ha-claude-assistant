@@ -436,7 +436,9 @@ export function getHtmlTemplate(): string {
     }
 
     async function submitCode() {
-      const code = document.getElementById('authCode').value.trim();
+      // Claude callback 頁面顯示的 code 格式為 "code#state"，移除 # 後面的部分
+      const rawCode = document.getElementById('authCode').value.trim();
+      const code = rawCode.includes('#') ? rawCode.split('#')[0] : rawCode;
       if (!code) {
         showMessage('loginMessage', 'Please enter the authorization code', 'error');
         return;
