@@ -1,6 +1,6 @@
 {
   "name": "ha-claude-assistant",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Claude AI 驅動的智慧家庭助理，整合 Home Assistant",
   "type": "module",
   "main": "dist/index.js",
