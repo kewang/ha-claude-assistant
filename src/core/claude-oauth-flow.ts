@@ -13,9 +13,10 @@
  */
 
 import { randomBytes, createHash } from 'crypto';
-import { writeFile, readFile, mkdir } from 'fs/promises';
+import { writeFile, readFile, mkdir, chown } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { getOAuthConfig } from './claude-oauth-config.js';
 import { detectEnvironment } from './env-detect.js';
 import { createLogger } from '../utils/logger.js';
@@ -41,6 +42,7 @@ export interface TokenResponse {
   refresh_token: string;
   expires_in: number;
   token_type: string;
+  [key: string]: unknown; // 保留 API 回傳的所有額外欄位
 }
 
 // 存放進行中的 PKCE sessions（state → session）
@@ -186,6 +188,10 @@ export async function exchangeCodeForTokens(
   const tokens = await response.json() as TokenResponse;
   logger.info('Token exchange successful');
 
+  // 記錄 response 中的所有欄位（不含 token 值）
+  const responseKeys = Object.keys(tokens);
+  logger.debug(`Token response fields: ${responseKeys.join(', ')}`);
+
   return tokens;
 }
 
@@ -216,11 +222,23 @@ export async function saveCredentials(tokens: TokenResponse): Promise<void> {
   // 計算過期時間
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
 
-  // 更新 OAuth credentials
+  // 將 snake_case 轉為 camelCase
+  const toCamelCase = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+
+  // 收集所有額外欄位（snake_case → camelCase）
+  const extraFields: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(tokens)) {
+    // 跳過已明確處理的欄位
+    if (['access_token', 'refresh_token', 'expires_in', 'token_type'].includes(key)) continue;
+    extraFields[toCamelCase(key)] = value;
+  }
+
+  // 更新 OAuth credentials（保留既有欄位 + 加入所有 response 欄位）
   existing.claudeAiOauth = {
     ...(existing.claudeAiOauth && typeof existing.claudeAiOauth === 'object'
       ? existing.claudeAiOauth
       : {}),
+    ...extraFields,
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     expiresAt: expiresAt.toISOString(),
@@ -228,6 +246,16 @@ export async function saveCredentials(tokens: TokenResponse): Promise<void> {
 
   await writeFile(credentialsPath, JSON.stringify(existing, null, 2), 'utf-8');
   logger.info(`Credentials saved to ${credentialsPath}`);
+
+  // Add-on 環境：修正檔案權限，讓 claude 用戶可以讀取
+  if (env.isAddon) {
+    try {
+      execSync(`chown claude:claude "${credentialsPath}"`);
+      logger.debug('Credentials file ownership set to claude:claude');
+    } catch (e) {
+      logger.warn('Failed to chown credentials file (may not be running as root)');
+    }
+  }
 }
 
 /**

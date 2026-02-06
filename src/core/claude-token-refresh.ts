@@ -46,6 +46,7 @@ interface TokenRefreshResponse {
   refresh_token: string;
   expires_in: number; // 秒
   token_type: string;
+  [key: string]: unknown; // 保留 API 回傳的所有額外欄位
 }
 
 // 刷新結果
@@ -217,9 +218,20 @@ export class ClaudeTokenRefreshService {
       // 計算新的過期時間
       const newExpiresAt = new Date(Date.now() + response.expires_in * 1000);
 
-      // 更新 credentials（保留原有欄位如 rateLimitTier, scopes, subscriptionType）
+      // 將 snake_case 轉為 camelCase
+      const toCamelCase = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+
+      // 收集所有額外欄位（snake_case → camelCase）
+      const extraFields: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(response)) {
+        if (['access_token', 'refresh_token', 'expires_in', 'token_type'].includes(key)) continue;
+        extraFields[toCamelCase(key)] = value;
+      }
+
+      // 更新 credentials（保留原有欄位 + 加入所有 response 欄位）
       credentials.claudeAiOauth = {
         ...credentials.claudeAiOauth,
+        ...extraFields,
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
         expiresAt: newExpiresAt.toISOString(),
