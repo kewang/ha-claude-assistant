@@ -24,7 +24,7 @@ const logger = createLogger('OAuthFlow');
 
 // 從 Claude CLI binary 提取的 OAuth endpoints
 const REDIRECT_URI = 'https://platform.claude.com/oauth/code/callback';
-const AUTHORIZE_URL = 'https://platform.claude.com/oauth/authorize';
+const AUTHORIZE_URL = 'https://claude.ai/oauth/authorize';
 
 // PKCE session 存活時間（10 分鐘）
 const SESSION_TTL_MS = 10 * 60 * 1000;
@@ -80,7 +80,7 @@ export function buildAuthorizationUrl(codeChallenge: string, state: string): str
     response_type: 'code',
     client_id: oauthConfig.clientId,
     redirect_uri: REDIRECT_URI,
-    scope: 'user:profile user:inference user:sessions:claude_code user:mcp_servers org:create_api_key',
+    scope: 'user:profile user:inference user:sessions:claude_code user:mcp_servers',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',

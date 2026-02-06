@@ -100,7 +100,7 @@ describe('Claude OAuth Flow', () => {
     it('should build a valid authorization URL', () => {
       const url = buildAuthorizationUrl('test-challenge', 'test-state');
 
-      expect(url).toContain('https://platform.claude.com/oauth/authorize');
+      expect(url).toContain('https://claude.ai/oauth/authorize');
       expect(url).toContain('response_type=code');
       expect(url).toContain('client_id=test-client-id');
       expect(url).toContain('code_challenge=test-challenge');
@@ -119,7 +119,7 @@ describe('Claude OAuth Flow', () => {
     it('should create a new session and return auth URL', () => {
       const { authUrl, state } = startAuthFlow();
 
-      expect(authUrl).toContain('https://platform.claude.com/oauth/authorize');
+      expect(authUrl).toContain('https://claude.ai/oauth/authorize');
       expect(state).toBeTruthy();
       expect(getActiveSessionCount()).toBe(1);
     });
