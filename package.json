@@ -16,6 +16,7 @@
     "mcp": "node dist/interfaces/mcp-server.js",
     "slack": "node dist/interfaces/slack-bot.js",
     "scheduler": "node dist/interfaces/scheduler-daemon.js",
+    "web-ui": "node dist/interfaces/web-ui.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ha": "node dist/test-ha.js",

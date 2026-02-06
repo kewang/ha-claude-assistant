@@ -4,6 +4,7 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 
 ## 功能
 
+- **Web UI 登入**：透過 HA 側邊欄完成 Claude 登入，無需進入容器
 - **Slack Bot**：透過 Slack 與 Claude 對話，控制智慧家庭設備
 - **排程服務**：設定定時任務，例如每天早上報告天氣和設備狀態
 - **自然語言控制**：用自然語言控制燈光、開關、空調等設備
@@ -28,7 +29,17 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 
 ### 3. 登入 Claude Code
 
-**重要**：Claude Code 已預先安裝在容器中，但你需要手動登入。
+安裝完成後，HA 側邊欄會出現「Claude Assistant」。
+
+**方法一：Web UI 登入（推薦）**
+
+1. 點擊側邊欄的「Claude Assistant」
+2. 點擊「Login to Claude」按鈕
+3. 在新開的分頁中完成 Claude 授權
+4. 複製頁面顯示的授權碼，貼回 Web UI
+5. 完成！狀態會顯示綠燈
+
+**方法二：命令列登入**
 
 ```bash
 # 1. 進入 Add-on 容器
@@ -37,8 +48,6 @@ docker exec -it $(docker ps -qf name=claude) bash
 # 2. 登入 Claude（會開啟瀏覽器進行 OAuth）
 su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ```
-
-登入完成後，Add-on 會自動繼續啟動。
 
 > **注意**：登入後，系統會自動維護 token 有效性，無需手動介入。詳見下方「Token 自動刷新」章節。
 
@@ -100,13 +109,12 @@ Claude CLI 的 OAuth token 會定期過期：
 
 當收到 Slack 通知表示 token 已過期時，需要重新登入：
 
-```bash
-# 進入容器
-docker exec -it $(docker ps -qf name=claude) bash
-
-# 重新登入
-su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
-```
+1. 打開側邊欄的「Claude Assistant」，點擊「Login to Claude」重新授權
+2. 或進入容器手動登入：
+   ```bash
+   docker exec -it $(docker ps -qf name=claude) bash
+   su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
+   ```
 
 登入完成後，系統會自動恢復運作。
 
@@ -148,6 +156,10 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ## 技術架構
 
 ```
+Web UI (port 8099, HA Ingress)
+        ↓
+  OAuth PKCE Flow → Claude 登入
+
 Slack Bot / Scheduler
         ↓
   claude-run (以非 root 用戶執行)

@@ -201,6 +201,12 @@ echo "=========================================="
 echo "啟動服務..."
 echo "=========================================="
 
+# 啟動 Web UI（背景執行，ingress）
+echo "Starting Web UI server..."
+node /app/dist/interfaces/web-ui.js &
+WEBUI_PID=$!
+echo "Web UI started (PID: $WEBUI_PID)"
+
 # 啟動 Scheduler（背景執行）
 echo "Starting Scheduler daemon..."
 node /app/dist/interfaces/scheduler-daemon.js &
