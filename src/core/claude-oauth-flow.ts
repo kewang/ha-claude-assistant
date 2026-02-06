@@ -141,21 +141,23 @@ export async function exchangeCodeForTokens(
   const oauthConfig = getOAuthConfig();
 
   logger.info('Exchanging authorization code for tokens...');
+  logger.debug(`Token URL: ${oauthConfig.tokenUrl}`);
 
-  const tokenParams = new URLSearchParams({
+  const tokenBody = {
     grant_type: 'authorization_code',
     code,
     redirect_uri: REDIRECT_URI,
     client_id: oauthConfig.clientId,
     code_verifier: session.codeVerifier,
-  });
+    state,
+  };
 
   const response = await fetch(oauthConfig.tokenUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
     },
-    body: tokenParams.toString(),
+    body: JSON.stringify(tokenBody),
   });
 
   // 用完即刪除 session
@@ -164,7 +166,21 @@ export async function exchangeCodeForTokens(
   if (!response.ok) {
     const errorText = await response.text();
     logger.error(`Token exchange failed: ${response.status} ${errorText}`);
-    throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
+    // 嘗試解析 JSON error response 取出更有意義的訊息
+    let errorMessage = `Token exchange failed: ${response.status}`;
+    try {
+      const errorJson = JSON.parse(errorText);
+      if (errorJson.error_description) {
+        errorMessage += ` - ${errorJson.error_description}`;
+      } else if (errorJson.error) {
+        errorMessage += ` - ${errorJson.error}`;
+      } else {
+        errorMessage += ` - ${errorText}`;
+      }
+    } catch {
+      errorMessage += ` - ${errorText}`;
+    }
+    throw new Error(errorMessage);
   }
 
   const tokens = await response.json() as TokenResponse;

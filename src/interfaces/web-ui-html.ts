@@ -495,7 +495,8 @@ export function getHtmlTemplate(): string {
 
     function showMessage(elementId, text, type) {
       const el = document.getElementById(elementId);
-      el.textContent = text;
+      const displayText = text.length > 200 ? text.substring(0, 200) + '...' : text;
+      el.textContent = displayText;
       el.className = 'message show ' + type;
       // 10 秒後自動隱藏
       setTimeout(function() {

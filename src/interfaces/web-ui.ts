@@ -21,7 +21,7 @@ const logger = createLogger('WebUI');
 const PORT = parseInt(process.env.WEB_UI_PORT || '8099', 10);
 
 /**
- * 解析 JSON body
+ * 解析 request body（支援 JSON 和 form-urlencoded 格式）
  */
 function parseBody(req: http.IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
@@ -32,10 +32,29 @@ function parseBody(req: http.IncomingMessage): Promise<Record<string, unknown>> 
         resolve({});
         return;
       }
+      const raw = Buffer.concat(chunks).toString('utf-8');
+      const contentType = req.headers['content-type'] || '';
+
+      // 優先嘗試 JSON
+      if (contentType.includes('application/json') || raw.startsWith('{')) {
+        try {
+          resolve(JSON.parse(raw));
+          return;
+        } catch {
+          // fallthrough to form-urlencoded
+        }
+      }
+
+      // 嘗試 form-urlencoded
       try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf-8')));
+        const params = new URLSearchParams(raw);
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of params) {
+          result[key] = value;
+        }
+        resolve(result);
       } catch {
-        reject(new Error('Invalid JSON body'));
+        reject(new Error('Invalid request body'));
       }
     });
     req.on('error', reject);

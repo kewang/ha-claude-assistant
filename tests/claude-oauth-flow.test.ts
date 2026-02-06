@@ -146,7 +146,7 @@ describe('Claude OAuth Flow', () => {
       const { state } = startAuthFlow();
 
       // Mock fetch
-      const mockResponse = {
+      const mockFetch = vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           access_token: 'test-access-token',
@@ -154,8 +154,8 @@ describe('Claude OAuth Flow', () => {
           expires_in: 3600,
           token_type: 'Bearer',
         }),
-      };
-      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+      });
+      vi.stubGlobal('fetch', mockFetch);
 
       const tokens = await exchangeCodeForTokens('auth-code', state);
 
@@ -165,21 +165,50 @@ describe('Claude OAuth Flow', () => {
 
       // Session should be consumed
       expect(getActiveSessionCount()).toBe(0);
+
+      // Verify fetch was called with JSON format
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const [url, options] = mockFetch.mock.calls[0];
+      expect(url).toBe('https://platform.claude.com/v1/oauth/token');
+      expect(options.headers['Content-Type']).toBe('application/json');
+
+      const body = JSON.parse(options.body);
+      expect(body.grant_type).toBe('authorization_code');
+      expect(body.code).toBe('auth-code');
+      expect(body.client_id).toBe('test-client-id');
+      expect(body.state).toBe(state);
+      expect(body.code_verifier).toBeTruthy();
+      expect(body.redirect_uri).toBeTruthy();
     });
 
-    it('should throw on token exchange failure', async () => {
+    it('should throw on token exchange failure with parsed error', async () => {
       const { state } = startAuthFlow();
 
       const mockResponse = {
         ok: false,
         status: 400,
-        text: async () => 'invalid_grant',
+        text: async () => JSON.stringify({ error: 'invalid_grant', error_description: 'The code has expired' }),
       };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
 
       await expect(
         exchangeCodeForTokens('bad-code', state)
-      ).rejects.toThrow('Token exchange failed');
+      ).rejects.toThrow('Token exchange failed: 400 - The code has expired');
+    });
+
+    it('should throw on token exchange failure with plain text error', async () => {
+      const { state } = startAuthFlow();
+
+      const mockResponse = {
+        ok: false,
+        status: 400,
+        text: async () => 'invalid request format',
+      };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(mockResponse));
+
+      await expect(
+        exchangeCodeForTokens('bad-code', state)
+      ).rejects.toThrow('Token exchange failed: 400 - invalid request format');
     });
 
     it('should reject expired session', async () => {
