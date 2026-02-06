@@ -37,6 +37,8 @@ RUN npm install -g @anthropic-ai/claude-code && \
 WORKDIR /app
 
 # 從 GitHub 克隆並建置
+# 使用 BUILD_VERSION 破壞快取，確保每次版本更新都重新 clone
+ARG BUILD_VERSION
 RUN git clone --depth 1 https://github.com/kewang/ha-claude-assistant.git . && \
     npm ci && \
     npm run build && \
