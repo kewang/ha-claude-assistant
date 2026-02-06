@@ -24,7 +24,7 @@ const logger = createLogger('OAuthFlow');
 
 // 從 Claude CLI binary 提取的 OAuth endpoints
 const REDIRECT_URI = 'https://platform.claude.com/oauth/code/callback';
-const AUTHORIZE_URL = 'https://claude.ai/oauth/authorize';
+const AUTHORIZE_URL = 'https://platform.claude.com/oauth/authorize';
 
 // PKCE session 存活時間（10 分鐘）
 const SESSION_TTL_MS = 10 * 60 * 1000;
