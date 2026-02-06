@@ -142,18 +142,20 @@ export async function exchangeCodeForTokens(
 
   logger.info('Exchanging authorization code for tokens...');
 
+  const tokenParams = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: REDIRECT_URI,
+    client_id: oauthConfig.clientId,
+    code_verifier: session.codeVerifier,
+  });
+
   const response = await fetch(oauthConfig.tokenUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: REDIRECT_URI,
-      client_id: oauthConfig.clientId,
-      code_verifier: session.codeVerifier,
-    }),
+    body: tokenParams.toString(),
   });
 
   // 用完即刪除 session

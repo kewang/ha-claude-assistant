@@ -156,16 +156,18 @@ export class ClaudeTokenRefreshService {
     logger.debug(`  TOKEN_URL: ${oauthConfig.tokenUrl}`);
     logger.debug(`  CLIENT_ID: ${oauthConfig.clientId}`);
 
+    const tokenParams = new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: oauthConfig.clientId,
+    });
+
     const response = await fetch(oauthConfig.tokenUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        client_id: oauthConfig.clientId,
-      }),
+      body: tokenParams.toString(),
     });
 
     if (!response.ok) {
