@@ -1,5 +1,5 @@
 name: Claude HA Assistant
-version: "1.4.2"
+version: "1.4.3"
 slug: claude_ha_assistant
 description: Claude AI 驅動的智慧家庭助理，整合 Home Assistant
 url: https://github.com/kewang/ha-claude-assistant
