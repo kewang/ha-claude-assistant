@@ -101,6 +101,7 @@ describe('Claude OAuth Flow', () => {
       const url = buildAuthorizationUrl('test-challenge', 'test-state');
 
       expect(url).toContain('https://claude.ai/oauth/authorize');
+      expect(url).toContain('code=true');
       expect(url).toContain('response_type=code');
       expect(url).toContain('client_id=test-client-id');
       expect(url).toContain('code_challenge=test-challenge');

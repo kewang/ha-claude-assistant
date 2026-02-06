@@ -77,13 +77,14 @@ export function buildAuthorizationUrl(codeChallenge: string, state: string): str
   const oauthConfig = getOAuthConfig();
 
   const params = new URLSearchParams({
-    response_type: 'code',
+    code: 'true',
     client_id: oauthConfig.clientId,
+    response_type: 'code',
     redirect_uri: REDIRECT_URI,
-    scope: 'user:profile user:inference user:sessions:claude_code user:mcp_servers',
-    state,
+    scope: 'org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers',
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
+    state,
   });
 
   return `${AUTHORIZE_URL}?${params.toString()}`;
