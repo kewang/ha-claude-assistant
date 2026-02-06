@@ -67,7 +67,7 @@ export function generatePKCE(): { codeVerifier: string; codeChallenge: string } 
  * 產生隨機 state 參數（防 CSRF）
  */
 export function generateState(): string {
-  return randomBytes(16).toString('base64url');
+  return randomBytes(32).toString('base64url');
 }
 
 /**
