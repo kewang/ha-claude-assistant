@@ -170,8 +170,8 @@ async function handleRequest(
 function startServer(): void {
   const server = http.createServer(handleRequest);
 
-  server.listen(PORT, () => {
-    logger.info(`Web UI server started on port ${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Web UI server started on 0.0.0.0:${PORT}`);
   });
 
   server.on('error', (error) => {

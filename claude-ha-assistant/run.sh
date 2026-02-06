@@ -207,6 +207,14 @@ node /app/dist/interfaces/web-ui.js &
 WEBUI_PID=$!
 echo "Web UI started (PID: $WEBUI_PID)"
 
+# 等待 Web UI 啟動
+sleep 2
+if kill -0 $WEBUI_PID 2>/dev/null; then
+    echo "Web UI is running (PID: $WEBUI_PID)"
+else
+    echo "Warning: Web UI failed to start"
+fi
+
 # 啟動 Scheduler（背景執行）
 echo "Starting Scheduler daemon..."
 node /app/dist/interfaces/scheduler-daemon.js &
