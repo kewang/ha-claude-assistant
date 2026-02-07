@@ -300,6 +300,41 @@ pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler
 - `claude` CLI 已安裝並登入
 - 設定 `SLACK_BOT_TOKEN` 和 `SLACK_DEFAULT_CHANNEL`（用於發送通知）
 
+## Claude CLI Credentials 格式
+
+Web UI OAuth 登入後儲存的 `.credentials.json` 必須與 CLI 產生的格式完全一致，否則 CLI 會報 "Invalid API key"。
+
+### 正確格式（CLI v2.1.31）
+
+```json
+{
+  "claudeAiOauth": {
+    "accessToken": "sk-ant-oat01-...",
+    "refreshToken": "sk-ant-ort01-...",
+    "expiresAt": 1770457548204,
+    "scopes": ["user:inference", "user:mcp_servers", "user:profile", "user:sessions:claude_code"],
+    "subscriptionType": "max",
+    "rateLimitTier": "default_claude_max_5x"
+  }
+}
+```
+
+### 格式重點
+
+| 欄位 | 正確 | 常見錯誤 |
+|------|------|----------|
+| `expiresAt` | Unix timestamp ms **數字** `1770457548204` | ISO 字串 `"2026-02-07T..."` |
+| `scopes` | **字串陣列** `["user:inference", ...]` | 空格分隔字串，或 key 用 `scope` |
+| `organization`/`account` | **不存** | Token response 有回傳但 CLI 不需要 |
+| `subscriptionType`/`rateLimitTier` | CLI login 才有 | Web UI 登入時缺少（不影響功能） |
+
+### OAuth 注意事項
+
+- Token exchange 和 refresh 都用 **`application/json`**（不是 form-urlencoded）
+- Callback page 的 code 格式是 `code#state`，需移除 `#` 後面的部分
+- `api.anthropic.com` **不支援 OAuth token**，CLI 使用不同的 internal endpoint
+- Add-on 中 Web UI 以 root 寫入 credentials，需 `chown claude:claude` 讓 claude-run 可讀
+
 ## Token 自動刷新機制
 
 Claude CLI 的 OAuth token 會定期過期：

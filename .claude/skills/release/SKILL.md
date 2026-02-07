@@ -29,6 +29,26 @@ description: |
 - 未追蹤的檔案
 
 ### 3. 更新文件
+
+#### CHANGELOG.md（兩份，內容必須一致）
+根據自上次 tag 以來的 commits，同步更新：
+- `CHANGELOG.md`（專案根目錄）
+- `claude-ha-assistant/CHANGELOG.md`（Add-on 目錄）
+
+更新方式：
+1. 讀取目前 CHANGELOG.md 取得現有格式
+2. 在最上方新增一個版本條目（版本號使用即將發佈的新版本）
+3. 根據 commits 分類為 `### Added`、`### Fixed`、`### Changed` 等區塊
+4. 將相同內容寫入兩份檔案
+
+#### README.md 與 DOCS.md（兩份，內容必須一致）
+如果有使用者可見的變更（新功能、設定選項、使用方式等），同步更新：
+- `README.md`（專案根目錄）
+- `claude-ha-assistant/DOCS.md`（Add-on 目錄，顯示於 HA Add-on 頁面）
+
+兩份檔案內容必須保持一致。修改其中一份時，另一份也要同步更新。
+
+#### CLAUDE.md
 如果有程式碼變更，檢查是否需要更新 CLAUDE.md：
 - 新增功能需要更新文件
 - API 變更需要更新文件

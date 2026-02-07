@@ -8,14 +8,20 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 - **Slack Bot**：透過 Slack 與 Claude 對話，控制智慧家庭設備
 - **排程服務**：設定定時任務，例如每天早上報告天氣和設備狀態
 - **自然語言控制**：用自然語言控制燈光、開關、空調等設備
+- **多種介面**：CLI、MCP Server（Claude Code）、Slack Bot
 
 ## 安裝步驟
 
-### 1. 安裝 Add-on
+### 方式一：Home Assistant Add-on（推薦）
 
-在 Home Assistant 的「設定 > 附加元件」中搜尋並安裝此 Add-on。
+#### 1. 安裝 Add-on
 
-### 2. 設定 Slack
+1. 在 Home Assistant 中，前往「設定 > 附加元件 > 附加元件商店」
+2. 點擊右上角選單，選擇「倉庫」
+3. 加入此倉庫：`https://github.com/kewang/ha-claude-assistant`
+4. 安裝「Claude HA Assistant」Add-on
+
+#### 2. 設定 Slack
 
 1. 前往 [Slack API](https://api.slack.com/apps) 建立新的 App
 2. 啟用以下功能：
@@ -27,7 +33,7 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
    - `slack_app_token`：App Token (xapp-)
    - `slack_default_channel`：預設頻道 ID (C...)
 
-### 3. 登入 Claude Code
+#### 3. 登入 Claude Code
 
 安裝完成後，HA 側邊欄會出現「Claude Assistant」。
 
@@ -50,6 +56,49 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ```
 
 > **注意**：登入後，系統會自動維護 token 有效性，無需手動介入。詳見下方「Token 自動刷新」章節。
+
+### 方式二：手動安裝（開發用）
+
+#### 1. 安裝
+
+```bash
+cd ~/git/ha-claude-assistant
+npm install
+```
+
+#### 2. 設定環境變數
+
+```bash
+cp .env.example .env
+```
+
+編輯 `.env` 檔案：
+
+```env
+# Home Assistant 設定
+HA_URL=http://your-ha-ip:8123
+HA_URL_EXTERNAL=https://your-ha.duckdns.org:8123  # 選用，外網 URL
+HA_TOKEN=your_long_lived_access_token
+
+# Slack（選用）
+SLACK_BOT_TOKEN=xoxb-your-bot-token
+SLACK_APP_TOKEN=xapp-your-app-token
+SLACK_DEFAULT_CHANNEL=C0123456789
+```
+
+> 注意：設定 `HA_URL_EXTERNAL` 後，系統會自動偵測連線，優先使用內網。
+
+#### 3. 建置
+
+```bash
+npm run build
+```
+
+#### 4. 測試 Home Assistant 連線
+
+```bash
+npm run test:ha
+```
 
 ## 使用方式
 
@@ -80,6 +129,45 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 /ha 把溫濕度報告停用
 /ha 刪除早晨天氣排程
 ```
+
+### CLI 互動模式（手動安裝）
+
+```bash
+npm run cli
+```
+
+或直接執行指令：
+
+```bash
+npm run cli "列出所有燈具"
+npm run cli "把客廳的燈打開"
+```
+
+### MCP Server（Claude Code 整合）
+
+1. 編輯 Claude Code 設定檔 `~/.claude/claude_desktop_config.json`：
+
+```json
+{
+  "mcpServers": {
+    "ha-assistant": {
+      "command": "node",
+      "args": ["/home/你的帳號/git/ha-claude-assistant/dist/interfaces/mcp-server.js"],
+      "env": {
+        "HA_URL": "http://your-ha-ip:8123",
+        "HA_TOKEN": "your_token"
+      }
+    }
+  }
+}
+```
+
+2. 重啟 Claude Code
+
+3. 在 Claude Code 中使用：
+   - "列出家中所有燈具"
+   - "把臥室的燈關掉"
+   - "現在室內溫度幾度？"
 
 ## 設定選項
 
@@ -120,17 +208,15 @@ Claude CLI 的 OAuth token 會定期過期：
 
 ## 故障排除
 
-### Claude CLI 未登入
+### 一般問題
 
-如果日誌顯示「Claude CLI 尚未登入」，請按照上述步驟進入容器登入。
-
-### Slack 連線失敗
+#### Slack 連線失敗
 
 1. 確認 `slack_bot_token` 和 `slack_app_token` 正確
 2. 確認 Slack App 已啟用 Socket Mode
 3. 確認 Bot 已安裝到 Workspace
 
-### Slack 連線斷開
+#### Slack 連線斷開
 
 系統內建自動重連機制：
 
@@ -138,13 +224,36 @@ Claude CLI 的 OAuth token 會定期過期：
 - **重連次數**：最多嘗試 10 次，超過後發送 Slack 通知
 - **狀態機錯誤**：系統會捕捉 `@slack/socket-mode` 套件的已知錯誤，防止程序崩潰
 
-如果日誌顯示「已達最大重連次數」，請檢查網路連線並重啟 Add-on。
+如果日誌顯示「已達最大重連次數」，請檢查網路連線並重啟服務。
 
-### 無法控制設備
+#### 無法控制設備
 
 1. 確認 Home Assistant API 正常運作
-2. 檢查 Add-on 日誌是否有錯誤訊息
+2. 檢查日誌是否有錯誤訊息
 3. 確認 Claude 已成功登入
+
+### Add-on 專屬問題
+
+#### Web UI 登入後 Slack Bot 仍顯示 "Invalid API key"
+
+Web UI 儲存的 credentials 格式必須與 CLI 完全一致。如果遇到此問題：
+
+1. 確認 Add-on 版本為 **1.4.13+**
+2. 在 Web UI 重新執行一次 Login 流程
+3. 如果仍失敗，進入容器手動登入：
+   ```bash
+   docker exec -it $(docker ps -qf name=claude) bash
+   su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
+   ```
+
+#### Claude CLI 未登入
+
+如果日誌顯示「Claude CLI 尚未登入」，請進入容器登入：
+
+```bash
+docker exec -it $(docker ps -qf name=claude) bash
+su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
+```
 
 ## 資料持久化
 
@@ -175,6 +284,99 @@ Slack Bot / Scheduler
 
 > **注意**：Claude CLI 的 `bypassPermissions` 模式不允許在 root 下執行，因此使用 `su-exec` 以 `claude` 用戶身份執行。
 
+## 專案結構
+
+```
+ha-claude-assistant/
+├── src/
+│   ├── core/
+│   │   ├── ha-client.ts        # Home Assistant API 封裝
+│   │   ├── schedule-store.ts   # 排程持久化儲存
+│   │   ├── env-detect.ts       # 環境偵測（Add-on / 一般）
+│   │   ├── claude-token-refresh.ts # OAuth Token 自動刷新
+│   │   └── claude-oauth-config.ts  # OAuth 設定動態提取
+│   ├── interfaces/
+│   │   ├── mcp-server.ts       # MCP Server
+│   │   ├── cli.ts              # CLI 介面
+│   │   ├── slack-bot.ts        # Slack Bot
+│   │   ├── web-ui.ts           # Web UI HTTP Server
+│   │   └── scheduler-daemon.ts # 排程服務
+│   ├── tools/                  # Claude tools 定義
+│   │   ├── list-entities.ts
+│   │   ├── get-states.ts
+│   │   ├── call-service.ts
+│   │   ├── manage-schedule.ts
+│   │   └── index.ts
+│   └── index.ts
+├── repository.yaml             # HA Add-on 倉庫設定
+├── claude-ha-assistant/        # Home Assistant Add-on
+│   ├── config.yaml
+│   ├── Dockerfile
+│   └── ...
+├── tests/                      # 測試檔案
+├── data/                       # 排程資料
+├── .env.example                # 環境變數範例
+└── package.json
+```
+
+## 可用 Tools
+
+### list_entities
+列出 Home Assistant 中的實體，可依 domain 或關鍵字過濾。
+
+### get_state
+取得單一實體的詳細狀態和屬性。
+
+### call_service
+呼叫 HA 服務控制設備（開關燈、調溫度等）。
+
+### manage_schedule
+管理排程任務，支援建立、列出、啟用、停用、刪除排程。
+
+## 開發
+
+```bash
+# 開發模式（自動重新編譯）
+npm run dev
+
+# 執行測試
+npm test
+
+# 執行測試（監看模式）
+npm run test:watch
+```
+
+## 建立 Slack App
+
+1. 前往 https://api.slack.com/apps
+2. 建立新 App（From scratch）
+3. 啟用 Socket Mode（Settings > Socket Mode）
+4. 建立 App-Level Token（xapp-）
+5. 設定 Bot Token Scopes：
+   - `app_mentions:read`
+   - `chat:write`
+   - `commands`
+   - `im:history`
+   - `im:read`
+   - `im:write`
+6. 建立 Slash Commands：
+   - `/ha` - 智慧家庭控制（包含排程管理）
+7. 安裝到 Workspace
+8. 複製 Bot Token（xoxb-）和 App Token（xapp-）
+
+## 取得 Home Assistant Token
+
+1. 登入 Home Assistant
+2. 點擊左下角個人頭像
+3. 往下捲到「Long-lived access tokens」
+4. 點擊「CREATE TOKEN」
+5. 輸入名稱（如 "Claude Assistant"）
+6. 複製產生的 token
+
 ## 支援
 
 如有問題，請在 [GitHub Issues](https://github.com/kewang/ha-claude-assistant/issues) 回報。
+
+## License
+
+MIT
