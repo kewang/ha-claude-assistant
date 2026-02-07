@@ -42,8 +42,8 @@ const store = new ScheduleStore();
 const activeTasks: Map<string, ScheduledTask> = new Map();
 const timezone = process.env.TZ || 'Asia/Taipei';
 
-// 預設 timeout 1 分鐘
-const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
+// 預設 timeout 3 分鐘（複雜查詢需要多次 MCP 工具呼叫）
+const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || '', 10) || 3 * 60 * 1000;
 
 /**
  * Claude CLI 執行結果

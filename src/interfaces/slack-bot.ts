@@ -35,8 +35,8 @@ logger.info(`  SUPERVISOR_TOKEN: ${process.env.SUPERVISOR_TOKEN ? '(已設定)' 
 logger.info(`  HA_URL: ${process.env.HA_URL || '未設定'}`);
 logger.info(`  HA_TOKEN: ${process.env.HA_TOKEN ? '(已設定)' : '未設定'}`);
 
-// 預設 timeout 1 分鐘
-const CLAUDE_TIMEOUT_MS = 1 * 60 * 1000;
+// 預設 timeout 3 分鐘（複雜查詢需要多次 MCP 工具呼叫）
+const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || '', 10) || 3 * 60 * 1000;
 
 /**
  * 執行 Claude CLI
@@ -245,19 +245,44 @@ class SlackBot {
 
       logger.info(`Message from ${userId}: ${text}`);
 
+      // 先回覆「處理中」提示
+      const thinkingMsg = await say({
+        text: '🔄 處理中，請稍候...',
+        thread_ts: message.ts,
+      });
+
       try {
         const response = await executeClaudePrompt(text);
 
-        await say({
-          text: response,
-          thread_ts: message.ts,
-        });
+        // 更新「處理中」訊息為正式回覆
+        if (thinkingMsg && thinkingMsg.ts) {
+          await this.app.client.chat.update({
+            channel: message.channel,
+            ts: thinkingMsg.ts,
+            text: response,
+          });
+        } else {
+          await say({
+            text: response,
+            thread_ts: message.ts,
+          });
+        }
       } catch (error) {
         logger.error('Error processing message:', error);
-        await say({
-          text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
-          thread_ts: message.ts,
-        });
+        const errorText = `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`;
+
+        if (thinkingMsg && thinkingMsg.ts) {
+          await this.app.client.chat.update({
+            channel: message.channel,
+            ts: thinkingMsg.ts,
+            text: errorText,
+          });
+        } else {
+          await say({
+            text: errorText,
+            thread_ts: message.ts,
+          });
+        }
       }
     });
 
@@ -285,19 +310,43 @@ class SlackBot {
 
       logger.info(`Mention from ${userId}: ${text}`);
 
+      // 先回覆「處理中」提示
+      const thinkingMsg = await say({
+        text: '🔄 處理中，請稍候...',
+        thread_ts: event.ts,
+      });
+
       try {
         const response = await executeClaudePrompt(text);
 
-        await say({
-          text: response,
-          thread_ts: event.ts,
-        });
+        if (thinkingMsg && thinkingMsg.ts) {
+          await this.app.client.chat.update({
+            channel: event.channel,
+            ts: thinkingMsg.ts,
+            text: response,
+          });
+        } else {
+          await say({
+            text: response,
+            thread_ts: event.ts,
+          });
+        }
       } catch (error) {
         logger.error('Error processing mention:', error);
-        await say({
-          text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
-          thread_ts: event.ts,
-        });
+        const errorText = `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`;
+
+        if (thinkingMsg && thinkingMsg.ts) {
+          await this.app.client.chat.update({
+            channel: event.channel,
+            ts: thinkingMsg.ts,
+            text: errorText,
+          });
+        } else {
+          await say({
+            text: errorText,
+            thread_ts: event.ts,
+          });
+        }
       }
     });
   }
@@ -343,16 +392,23 @@ class SlackBot {
       // 一般指令：使用 Claude CLI
       logger.info(`Command from ${command.user_id}: ${text}`);
 
+      // 先回覆「處理中」提示
+      await respond({
+        text: '🔄 處理中，請稍候...',
+      });
+
       try {
         const response = await executeClaudePrompt(text);
 
         await respond({
           text: response,
+          replace_original: true,
         });
       } catch (error) {
         logger.error('Error processing command:', error);
         await respond({
           text: `抱歉，處理您的請求時發生錯誤：${error instanceof Error ? error.message : '未知錯誤'}`,
+          replace_original: true,
         });
       }
     });

@@ -84,6 +84,9 @@ HA_TOKEN=your_long_lived_access_token
 SLACK_BOT_TOKEN=xoxb-your-bot-token
 SLACK_APP_TOKEN=xapp-your-app-token
 SLACK_DEFAULT_CHANNEL=C0123456789
+
+# Claude CLI 設定（選用）
+CLAUDE_TIMEOUT_MS=180000  # Claude CLI 執行 timeout（預設 3 分鐘）
 ```
 
 > 注意：設定 `HA_URL_EXTERNAL` 後，系統會自動偵測連線，優先使用內網。

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.14] - 2026-02-07
+
+### Changed
+- Claude CLI timeout 從 1 分鐘增加到 3 分鐘（Slack Bot 和 Scheduler）
+- 支援 `CLAUDE_TIMEOUT_MS` 環境變數自訂 timeout
+- Slack Bot 收到訊息後先回覆「處理中」提示，完成後更新為正式回覆
+
+### Fixed
+- 修正文件中 ingress port 寫死 8099 的問題（實際由 Supervisor 動態指派）
+
 ## [1.4.13] - 2026-02-07
 
 ### Added
