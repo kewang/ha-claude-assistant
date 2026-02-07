@@ -265,7 +265,7 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 ## 技術架構
 
 ```
-Web UI (port 8099, HA Ingress)
+Web UI (HA Ingress, 動態 port)
         ↓
   OAuth PKCE Flow → Claude 登入
 
