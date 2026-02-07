@@ -31,7 +31,7 @@ interface ClaudeCredentials {
   claudeAiOauth?: {
     accessToken: string;
     refreshToken: string;
-    expiresAt: string; // ISO date string
+    expiresAt: number; // Unix timestamp in milliseconds
     // OAuth 刷新時需要保留的額外欄位
     rateLimitTier?: string;
     scopes?: string[];
@@ -133,18 +133,15 @@ export class ClaudeTokenRefreshService {
   /**
    * 檢查 access token 是否即將過期
    */
-  private isTokenExpiringSoon(expiresAt: Date): boolean {
-    const now = new Date();
-    const expiryTime = expiresAt.getTime();
-    const refreshThreshold = expiryTime - REFRESH_BEFORE_EXPIRY_MS;
-    return now.getTime() >= refreshThreshold;
+  private isTokenExpiringSoon(expiresAt: number): boolean {
+    return Date.now() >= expiresAt - REFRESH_BEFORE_EXPIRY_MS;
   }
 
   /**
    * 檢查 access token 是否已過期
    */
-  private isTokenExpired(expiresAt: Date): boolean {
-    return new Date() >= expiresAt;
+  private isTokenExpired(expiresAt: number): boolean {
+    return Date.now() >= expiresAt;
   }
 
   /**
@@ -197,15 +194,14 @@ export class ClaudeTokenRefreshService {
     }
 
     const { refreshToken, expiresAt } = credentials.claudeAiOauth;
-    const currentExpiry = new Date(expiresAt);
 
     // 檢查是否需要刷新
-    if (!this.isTokenExpiringSoon(currentExpiry)) {
-      const remainingMinutes = Math.round((currentExpiry.getTime() - Date.now()) / 60000);
+    if (!this.isTokenExpiringSoon(expiresAt)) {
+      const remainingMinutes = Math.round((expiresAt - Date.now()) / 60000);
       return {
         success: true,
         message: `Token still valid for ${remainingMinutes} minutes`,
-        expiresAt: currentExpiry,
+        expiresAt: new Date(expiresAt),
       };
     }
 
@@ -215,26 +211,34 @@ export class ClaudeTokenRefreshService {
       // 呼叫 refresh API
       const response = await this.callRefreshApi(refreshToken);
 
-      // 計算新的過期時間
-      const newExpiresAt = new Date(Date.now() + response.expires_in * 1000);
+      // 計算新的過期時間（Unix timestamp in milliseconds）
+      const newExpiresAt = Date.now() + response.expires_in * 1000;
 
       // 將 snake_case 轉為 camelCase
       const toCamelCase = (s: string) => s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
-      // 收集所有額外欄位（snake_case → camelCase）
+      // 收集需要的額外欄位（跳過巢狀物件）
+      const skipFields = ['access_token', 'refresh_token', 'expires_in', 'token_type', 'scope', 'organization', 'account'];
       const extraFields: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(response)) {
-        if (['access_token', 'refresh_token', 'expires_in', 'token_type'].includes(key)) continue;
+        if (skipFields.includes(key)) continue;
+        if (typeof value === 'object' && value !== null) continue;
         extraFields[toCamelCase(key)] = value;
       }
 
-      // 更新 credentials（保留原有欄位 + 加入所有 response 欄位）
+      // scope 字串轉 scopes 陣列
+      const scopeStr = response.scope as string | undefined;
+      if (scopeStr) {
+        extraFields.scopes = scopeStr.split(' ');
+      }
+
+      // 更新 credentials（保留原有欄位 + 加入 response 欄位）
       credentials.claudeAiOauth = {
         ...credentials.claudeAiOauth,
         ...extraFields,
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
-        expiresAt: newExpiresAt.toISOString(),
+        expiresAt: newExpiresAt,
       };
 
       await this.writeCredentials(credentials);
@@ -246,7 +250,7 @@ export class ClaudeTokenRefreshService {
       return {
         success: true,
         message: `Token refreshed successfully. Valid for ${validMinutes} minutes`,
-        expiresAt: newExpiresAt,
+        expiresAt: new Date(newExpiresAt),
       };
     } catch (error) {
       this.consecutiveFailures++;
@@ -309,7 +313,7 @@ export class ClaudeTokenRefreshService {
       };
     }
 
-    const expiresAt = new Date(credentials.claudeAiOauth.expiresAt);
+    const { expiresAt } = credentials.claudeAiOauth;
 
     // 如果已過期或即將過期，立即刷新
     if (this.isTokenExpired(expiresAt) || this.isTokenExpiringSoon(expiresAt)) {
@@ -319,7 +323,7 @@ export class ClaudeTokenRefreshService {
     return {
       success: true,
       message: 'Token is valid',
-      expiresAt,
+      expiresAt: new Date(expiresAt),
     };
   }
 
@@ -339,13 +343,12 @@ export class ClaudeTokenRefreshService {
       return { hasCredentials: false };
     }
 
-    const expiresAt = new Date(credentials.claudeAiOauth.expiresAt);
-    const now = new Date();
-    const remainingMs = expiresAt.getTime() - now.getTime();
+    const { expiresAt } = credentials.claudeAiOauth;
+    const remainingMs = expiresAt - Date.now();
 
     return {
       hasCredentials: true,
-      expiresAt,
+      expiresAt: new Date(expiresAt),
       isExpired: this.isTokenExpired(expiresAt),
       isExpiringSoon: this.isTokenExpiringSoon(expiresAt),
       remainingMinutes: Math.max(0, Math.round(remainingMs / 60000)),

@@ -219,29 +219,34 @@ export async function saveCredentials(tokens: TokenResponse): Promise<void> {
     }
   }
 
-  // 計算過期時間
-  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000);
+  // 計算過期時間（Unix timestamp in milliseconds，與 CLI 格式一致）
+  const expiresAt = Date.now() + tokens.expires_in * 1000;
 
   // 將 snake_case 轉為 camelCase
   const toCamelCase = (s: string) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
 
-  // 收集所有額外欄位（snake_case → camelCase）
+  // 收集需要的額外欄位（snake_case → camelCase）
+  // 跳過 CLI 不儲存的欄位（organization, account 等巢狀物件）
+  const skipFields = ['access_token', 'refresh_token', 'expires_in', 'token_type', 'scope', 'organization', 'account'];
   const extraFields: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(tokens)) {
-    // 跳過已明確處理的欄位
-    if (['access_token', 'refresh_token', 'expires_in', 'token_type'].includes(key)) continue;
+    if (skipFields.includes(key)) continue;
+    // 只保留純量值（string, number, boolean）
+    if (typeof value === 'object' && value !== null) continue;
     extraFields[toCamelCase(key)] = value;
   }
 
-  // 更新 OAuth credentials（保留既有欄位 + 加入所有 response 欄位）
+  // 將 scope 字串轉為 scopes 陣列（與 CLI 格式一致）
+  const scopeStr = tokens.scope as string | undefined;
+  const scopes = scopeStr ? scopeStr.split(' ') : undefined;
+
+  // 更新 OAuth credentials（與 CLI 產生的格式一致）
   existing.claudeAiOauth = {
-    ...(existing.claudeAiOauth && typeof existing.claudeAiOauth === 'object'
-      ? existing.claudeAiOauth
-      : {}),
-    ...extraFields,
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
-    expiresAt: expiresAt.toISOString(),
+    expiresAt,
+    ...(scopes && { scopes }),
+    ...extraFields,
   };
 
   await writeFile(credentialsPath, JSON.stringify(existing, null, 2), 'utf-8');
