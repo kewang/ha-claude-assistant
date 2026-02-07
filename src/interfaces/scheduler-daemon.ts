@@ -16,6 +16,7 @@ import type { ScheduledTask } from 'node-cron';
 import { spawn } from 'child_process';
 import { WebClient } from '@slack/web-api';
 import { ScheduleStore, type StoredSchedule } from '../core/schedule-store.js';
+import { ConversationStore, buildPromptWithHistory } from '../core/conversation-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 import { createLogger } from '../utils/logger.js';
@@ -39,6 +40,7 @@ if (slackToken) {
 
 // 排程管理
 const store = new ScheduleStore();
+const conversationStore = new ConversationStore();
 const activeTasks: Map<string, ScheduledTask> = new Map();
 const timezone = process.env.TZ || 'Asia/Taipei';
 
@@ -216,10 +218,15 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     return;
   }
 
-  // 2. 第一次執行
-  let result = await executeClaudePrompt(schedule.prompt);
+  // 2. 建立帶歷史的 prompt
+  const conversationKey = `schedule:${schedule.id}`;
+  const history = await conversationStore.getHistory(conversationKey);
+  const augmentedPrompt = buildPromptWithHistory(history, schedule.prompt);
 
-  // 3. 如果失敗且是 token 問題，嘗試刷新並重試
+  // 3. 第一次執行
+  let result = await executeClaudePrompt(augmentedPrompt);
+
+  // 4. 如果失敗且是 token 問題，嘗試刷新並重試
   if (!result.success && isTokenExpiredError(result.stdout, result.stderr)) {
     logger.info('Token expired during execution, refreshing and retrying...');
 
@@ -227,14 +234,15 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     if (refreshResult.success) {
       logger.info('Token refreshed, retrying execution...');
       // 重試一次
-      result = await executeClaudePrompt(schedule.prompt);
+      result = await executeClaudePrompt(augmentedPrompt);
     } else {
       logger.error('Token refresh failed:', refreshResult.message);
     }
   }
 
-  // 4. 根據最終結果發送通知
+  // 5. 根據最終結果發送通知
   if (result.success) {
+    await conversationStore.addExchange(conversationKey, schedule.prompt, result.output);
     const message = [
       `📋 *排程任務執行完成*`,
       `*名稱*: ${schedule.name}`,
@@ -356,6 +364,8 @@ async function main(): Promise<void> {
 
   // 初始化 store
   await store.init();
+  await conversationStore.init();
+  await conversationStore.cleanup();
 
   // 載入並啟動所有排程
   await reloadSchedules();

@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.5.0] - 2026-02-07
+
+### Added
+- **對話記憶持久化**：所有介面（Slack Bot、CLI、Scheduler）支援多輪對話上下文
+  - Slack Bot：同一 thread 內的訊息共用對話記憶
+  - CLI：互動模式下整個 session 保持對話上下文，`/clear` 可清除
+  - Scheduler：每個排程任務保留前次執行結果，可做趨勢比較
+- 新增 `ConversationStore` 核心模組，JSON 檔案持久化儲存
+- 支援環境變數自訂對話參數：`CONVERSATION_MAX_TURNS`、`CONVERSATION_MAX_CHARS`、`CONVERSATION_MAX_AGE_DAYS`
+- 自動清除過期對話（預設 7 天）
+
+### Fixed
+- 修正 Slack Bot thread reply 時 `thread_ts` 錯誤，導致回覆建立新 thread 而非回到原 thread
+
 ## [1.4.14] - 2026-02-07
 
 ### Changed

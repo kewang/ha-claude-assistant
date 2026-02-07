@@ -11,6 +11,7 @@ const { App, LogLevel } = bolt;
 import { config } from 'dotenv';
 import { spawn } from 'child_process';
 import { HAClient } from '../core/ha-client.js';
+import { ConversationStore, buildPromptWithHistory } from '../core/conversation-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 import { createLogger } from '../utils/logger.js';
@@ -120,6 +121,7 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
 class SlackBot {
   private app: bolt.App;
   private haClient: HAClient;
+  private conversationStore: ConversationStore;
   private defaultChannelId?: string;
   private reconnectAttempts = 0;
   private reconnecting = false;
@@ -133,6 +135,7 @@ class SlackBot {
     }
 
     this.haClient = new HAClient();
+    this.conversationStore = new ConversationStore();
 
     this.app = new App({
       token: botToken,
@@ -239,6 +242,7 @@ class SlackBot {
 
       const userId = message.user;
       const text = message.text;
+      const threadTs = ('thread_ts' in message ? message.thread_ts : undefined) || message.ts;
 
       // 忽略 bot 自己的訊息
       if ('bot_id' in message) return;
@@ -248,11 +252,16 @@ class SlackBot {
       // 先回覆「處理中」提示
       const thinkingMsg = await say({
         text: '🔄 處理中，請稍候...',
-        thread_ts: message.ts,
+        thread_ts: threadTs,
       });
 
       try {
-        const response = await executeClaudePrompt(text);
+        const conversationKey = `slack:${threadTs}`;
+        const history = await this.conversationStore.getHistory(conversationKey);
+        const augmentedPrompt = buildPromptWithHistory(history, text);
+        const response = await executeClaudePrompt(augmentedPrompt);
+
+        await this.conversationStore.addExchange(conversationKey, text, response);
 
         // 更新「處理中」訊息為正式回覆
         if (thinkingMsg && thinkingMsg.ts) {
@@ -264,7 +273,7 @@ class SlackBot {
         } else {
           await say({
             text: response,
-            thread_ts: message.ts,
+            thread_ts: threadTs,
           });
         }
       } catch (error) {
@@ -280,7 +289,7 @@ class SlackBot {
         } else {
           await say({
             text: errorText,
-            thread_ts: message.ts,
+            thread_ts: threadTs,
           });
         }
       }
@@ -291,11 +300,12 @@ class SlackBot {
       const userId = event.user;
       // 移除 @mention 部分
       const text = event.text.replace(/<@[A-Z0-9]+>/g, '').trim();
+      const threadTs = event.thread_ts || event.ts;
 
       if (!text) {
         await say({
           text: '你好！我是智慧家庭助理，請問有什麼我可以幫忙的嗎？',
-          thread_ts: event.ts,
+          thread_ts: threadTs,
         });
         return;
       }
@@ -303,7 +313,7 @@ class SlackBot {
       if (!userId) {
         await say({
           text: '無法識別使用者',
-          thread_ts: event.ts,
+          thread_ts: threadTs,
         });
         return;
       }
@@ -313,11 +323,16 @@ class SlackBot {
       // 先回覆「處理中」提示
       const thinkingMsg = await say({
         text: '🔄 處理中，請稍候...',
-        thread_ts: event.ts,
+        thread_ts: threadTs,
       });
 
       try {
-        const response = await executeClaudePrompt(text);
+        const conversationKey = `slack:${threadTs}`;
+        const history = await this.conversationStore.getHistory(conversationKey);
+        const augmentedPrompt = buildPromptWithHistory(history, text);
+        const response = await executeClaudePrompt(augmentedPrompt);
+
+        await this.conversationStore.addExchange(conversationKey, text, response);
 
         if (thinkingMsg && thinkingMsg.ts) {
           await this.app.client.chat.update({
@@ -328,7 +343,7 @@ class SlackBot {
         } else {
           await say({
             text: response,
-            thread_ts: event.ts,
+            thread_ts: threadTs,
           });
         }
       } catch (error) {
@@ -344,7 +359,7 @@ class SlackBot {
         } else {
           await say({
             text: errorText,
-            thread_ts: event.ts,
+            thread_ts: threadTs,
           });
         }
       }
@@ -434,6 +449,10 @@ class SlackBot {
   }
 
   async start(): Promise<void> {
+    // 初始化對話記憶
+    await this.conversationStore.init();
+    await this.conversationStore.cleanup();
+
     // 自動偵測 Home Assistant 連線
     try {
       const connection = await this.haClient.autoConnect();

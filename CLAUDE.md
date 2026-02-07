@@ -43,6 +43,7 @@ src/
 ├── core/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
 │   ├── schedule-store.ts # 排程持久化儲存
+│   ├── conversation-store.ts # 對話記憶持久化
 │   ├── env-detect.ts     # 環境偵測（Add-on / 一般環境）
 │   ├── claude-token-refresh.ts # OAuth Token 自動刷新
 │   └── claude-oauth-config.ts  # OAuth 設定動態提取
@@ -141,6 +142,19 @@ SLACK_DEFAULT_CHANNEL=C...
 - `create(schedule)` - 建立排程
 - `update(id, updates)` - 更新排程
 - `delete(id)` - 刪除排程
+
+### ConversationStore (conversation-store.ts)
+- `init()` - 初始化（建立目錄、載入資料）
+- `getHistory(id)` - 取得對話歷史
+- `addExchange(id, userMessage, assistantResponse)` - 新增一輪對話
+- `clear(id)` - 清除指定對話
+- `cleanup()` - 移除過期對話
+- `buildPromptWithHistory(history, newPrompt)` - 將歷史注入 prompt（輔助函式）
+
+對話 key 規則：
+- Slack: `slack:${thread_ts || ts}`
+- CLI: `cli:session-${timestamp}`
+- Scheduler: `schedule:${schedule.id}`
 
 ### ClaudeTokenRefreshService (claude-token-refresh.ts)
 - `start()` - 啟動定期檢查（每 5 分鐘）
@@ -521,6 +535,9 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude "$@"
 | `SCHEDULE_DATA_PATH` | `/data/schedules/schedules.json` | `data/schedules.json` |
 | `CLAUDE_PATH` | `/usr/local/bin/claude-run` | `~/.local/bin/claude` |
 | `CLAUDE_CONFIG_DIR` | `/data/claude` | - |
+| `CONVERSATION_MAX_TURNS` | 20（預設） | 20（預設） |
+| `CONVERSATION_MAX_CHARS` | 8000（預設） | 8000（預設） |
+| `CONVERSATION_MAX_AGE_DAYS` | 7（預設） | 7（預設） |
 
 ### Add-on 安裝
 

@@ -9,6 +9,7 @@ import { createInterface } from 'readline';
 import { spawn } from 'child_process';
 import { config } from 'dotenv';
 import { HAClient } from '../core/ha-client.js';
+import { ConversationStore, buildPromptWithHistory } from '../core/conversation-store.js';
 import { createLogger } from '../utils/logger.js';
 import { VERSION } from '../version.js';
 
@@ -30,6 +31,7 @@ const HELP_MESSAGE = `
 可用指令：
   /help     - 顯示此說明
   /status   - 檢查 Home Assistant 連線狀態
+  /clear    - 清除對話歷史
   /quit     - 離開程式
 
 範例對話：
@@ -94,11 +96,15 @@ async function executeClaudePrompt(prompt: string): Promise<string> {
 
 class CLI {
   private haClient: HAClient;
+  private conversationStore: ConversationStore;
+  private sessionId: string;
   private rl: ReturnType<typeof createInterface>;
   private isProcessing = false;
 
   constructor() {
     this.haClient = new HAClient();
+    this.conversationStore = new ConversationStore();
+    this.sessionId = `cli:session-${Date.now()}`;
     this.rl = createInterface({
       input: process.stdin,
       output: process.stdout,
@@ -115,6 +121,11 @@ class CLI {
 
       case '/status':
         await this.checkStatus();
+        return true;
+
+      case '/clear':
+        await this.conversationStore.clear(this.sessionId);
+        logger.raw('對話歷史已清除。\n');
         return true;
 
       case '/quit':
@@ -160,8 +171,11 @@ class CLI {
     logger.raw('\n思考中...\n');
 
     try {
-      const response = await executeClaudePrompt(trimmedInput);
+      const history = await this.conversationStore.getHistory(this.sessionId);
+      const augmentedPrompt = buildPromptWithHistory(history, trimmedInput);
+      const response = await executeClaudePrompt(augmentedPrompt);
       logger.raw(`🤖 ${response}\n`);
+      await this.conversationStore.addExchange(this.sessionId, trimmedInput, response);
     } catch (error) {
       logger.raw(`\n❌ 錯誤: ${error instanceof Error ? error.message : error}\n`);
     } finally {
@@ -184,6 +198,10 @@ class CLI {
 
   async start(): Promise<void> {
     logger.raw(WELCOME_MESSAGE);
+
+    // 初始化對話記憶
+    await this.conversationStore.init();
+    await this.conversationStore.cleanup();
 
     // 初始檢查連線
     await this.checkStatus();

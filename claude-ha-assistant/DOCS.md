@@ -6,6 +6,7 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 
 - **Web UI 登入**：透過 HA 側邊欄完成 Claude 登入，無需進入容器
 - **Slack Bot**：透過 Slack 與 Claude 對話，控制智慧家庭設備
+- **對話記憶**：支援多輪對話上下文，Slack thread、CLI session、排程任務都能記住前文
 - **排程服務**：設定定時任務，例如每天早上報告天氣和設備狀態
 - **自然語言控制**：用自然語言控制燈光、開關、空調等設備
 - **多種介面**：CLI、MCP Server（Claude Code）、Slack Bot
@@ -87,6 +88,11 @@ SLACK_DEFAULT_CHANNEL=C0123456789
 
 # Claude CLI 設定（選用）
 CLAUDE_TIMEOUT_MS=180000  # Claude CLI 執行 timeout（預設 3 分鐘）
+
+# 對話記憶設定（選用）
+CONVERSATION_MAX_TURNS=20       # 每組對話最多保留幾筆 turn（預設 20）
+CONVERSATION_MAX_CHARS=8000     # 歷史文字上限（預設 8000）
+CONVERSATION_MAX_AGE_DAYS=7     # 過期清除天數（預設 7）
 ```
 
 > 注意：設定 `HA_URL_EXTERNAL` 後，系統會自動偵測連線，優先使用內網。
@@ -264,6 +270,7 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 
 - **Claude 登入狀態**：儲存在 `/data/claude/`
 - **排程設定**：儲存在 `/data/schedules/schedules.json`
+- **對話記憶**：儲存在 `/data/conversations/conversations.json`
 
 ## 技術架構
 
@@ -295,6 +302,7 @@ ha-claude-assistant/
 │   ├── core/
 │   │   ├── ha-client.ts        # Home Assistant API 封裝
 │   │   ├── schedule-store.ts   # 排程持久化儲存
+│   │   ├── conversation-store.ts # 對話記憶持久化
 │   │   ├── env-detect.ts       # 環境偵測（Add-on / 一般）
 │   │   ├── claude-token-refresh.ts # OAuth Token 自動刷新
 │   │   └── claude-oauth-config.ts  # OAuth 設定動態提取
