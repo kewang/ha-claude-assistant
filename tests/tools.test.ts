@@ -1,15 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { haTools, listEntitiesTool, getStateTool, callServiceTool, manageScheduleTool } from '../src/tools/index.js';
+import { haTools, listEntitiesTool, getStateTool, callServiceTool, manageScheduleTool, getHistoryTool } from '../src/tools/index.js';
 
 describe('Tools', () => {
   describe('haTools array', () => {
     it('should contain all tools', () => {
-      expect(haTools).toHaveLength(4);
+      expect(haTools).toHaveLength(5);
       expect(haTools.map(t => t.name)).toEqual([
         'list_entities',
         'get_state',
         'call_service',
         'manage_schedule',
+        'get_history',
       ]);
     });
   });
@@ -68,6 +69,22 @@ describe('Tools', () => {
     it('should have action enum', () => {
       const properties = manageScheduleTool.input_schema.properties as Record<string, { enum?: string[] }>;
       expect(properties.action.enum).toEqual(['create', 'list', 'enable', 'disable', 'delete']);
+    });
+  });
+
+  describe('getHistoryTool', () => {
+    it('should have correct name', () => {
+      expect(getHistoryTool.name).toBe('get_history');
+    });
+
+    it('should require entity_id', () => {
+      expect(getHistoryTool.input_schema.required).toContain('entity_id');
+    });
+
+    it('should have optional time parameters', () => {
+      const properties = getHistoryTool.input_schema.properties as Record<string, unknown>;
+      expect(properties.start_time).toBeDefined();
+      expect(properties.end_time).toBeDefined();
     });
   });
 });

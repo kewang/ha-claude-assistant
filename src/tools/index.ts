@@ -5,15 +5,17 @@ import { listEntitiesTool, executeListEntities, type ListEntitiesInput } from '.
 import { getStateTool, executeGetState, type GetStateInput } from './get-states.js';
 import { callServiceTool, executeCallService, type CallServiceInput } from './call-service.js';
 import { manageScheduleTool, executeManageSchedule, type ManageScheduleInput } from './manage-schedule.js';
+import { getHistoryTool, executeGetHistory, type GetHistoryInput } from './get-history.js';
 
 export const haTools: Tool[] = [
   listEntitiesTool,
   getStateTool,
   callServiceTool,
   manageScheduleTool,
+  getHistoryTool,
 ];
 
-export type ToolInput = ListEntitiesInput | GetStateInput | CallServiceInput | ManageScheduleInput;
+export type ToolInput = ListEntitiesInput | GetStateInput | CallServiceInput | ManageScheduleInput | GetHistoryInput;
 
 export async function executeTool(
   client: HAClient,
@@ -29,6 +31,8 @@ export async function executeTool(
       return executeCallService(client, input as CallServiceInput);
     case 'manage_schedule':
       return executeManageSchedule(input as ManageScheduleInput);
+    case 'get_history':
+      return executeGetHistory(client, input as GetHistoryInput);
     default:
       return JSON.stringify({
         success: false,
@@ -46,6 +50,8 @@ export {
   executeCallService,
   manageScheduleTool,
   executeManageSchedule,
+  getHistoryTool,
+  executeGetHistory,
 };
 
 export type {
@@ -53,4 +59,5 @@ export type {
   GetStateInput,
   CallServiceInput,
   ManageScheduleInput,
+  GetHistoryInput,
 };

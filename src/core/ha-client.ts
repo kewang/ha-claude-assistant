@@ -350,6 +350,24 @@ export class HAClient {
   }
 
   /**
+   * 查詢實體歷史狀態
+   */
+  async getHistory(
+    entityId: string,
+    startTime?: string,
+    endTime?: string,
+    options?: { minimalResponse?: boolean; significantChangesOnly?: boolean }
+  ): Promise<HAState[][]> {
+    const timestamp = startTime ? `/${startTime}` : '';
+    const params = new URLSearchParams();
+    params.set('filter_entity_id', entityId);
+    if (endTime) params.set('end_time', endTime);
+    if (options?.minimalResponse) params.set('minimal_response', '');
+    if (options?.significantChangesOnly) params.set('significant_changes_only', '');
+    return this.request<HAState[][]>('GET', `/history/period${timestamp}?${params.toString()}`);
+  }
+
+  /**
    * 搜尋實體（依名稱）
    */
   async searchEntities(query: string): Promise<HAState[]> {
