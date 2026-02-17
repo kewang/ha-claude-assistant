@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.1] - 2026-02-18
+
+### Fixed
+- Event listener daemon 啟動時若無訂閱，自動建立預設的 `automation_triggered` 訂閱，實現開箱即用
+
 ## [1.7.0] - 2026-02-18
 
 ### Added

@@ -47,4 +47,5 @@
 
 - [x] 7.1 更新 `claude-ha-assistant/run.sh` 新增啟動 event-listener-daemon
 - [x] 7.2 更新 `CLAUDE.md` 新增 event-listener 相關說明
-- [ ] 7.3 端到端手動測試：建立訂閱 → HA 觸發 automation → 收到 Slack 通知（需要 HA 環境）
+- [x] 7.3 daemon 啟動時若 store 為空，自動建立預設的 `automation_triggered` 訂閱
+- [ ] 7.4 端到端手動測試：建立訂閱 → HA 觸發 automation → 收到 Slack 通知（需要 HA 環境）

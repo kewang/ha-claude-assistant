@@ -373,6 +373,19 @@ async function main(): Promise<void> {
 
   // 初始化 store
   await store.init();
+
+  // 若 store 為空，自動建立預設的 automation_triggered 訂閱
+  if (store.getAll().length === 0) {
+    logger.info('No subscriptions found, creating default automation_triggered subscription...');
+    await store.create({
+      name: '自動化觸發通知',
+      eventType: 'automation_triggered',
+      entityFilter: '',
+      description: '當 Home Assistant 自動化被觸發時，生成友善的通知訊息',
+      enabled: true,
+    });
+  }
+
   const subscriptions = store.getAll();
   logger.info(`Found ${subscriptions.length} subscription(s), ${subscriptions.filter(s => s.enabled).length} enabled`);
 
