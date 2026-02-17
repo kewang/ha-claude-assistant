@@ -11,6 +11,8 @@ import { executeListEntities, type ListEntitiesInput } from '../tools/list-entit
 import { executeGetState, type GetStateInput } from '../tools/get-states.js';
 import { executeCallService, type CallServiceInput } from '../tools/call-service.js';
 import { executeManageSchedule, type ManageScheduleInput } from '../tools/manage-schedule.js';
+import { executeGetHistory, type GetHistoryInput } from '../tools/get-history.js';
+import { executeManageEventSubscription, type ManageEventSubscriptionInput } from '../tools/manage-event-subscription.js';
 import { createLogger } from '../utils/logger.js';
 import { VERSION } from '../version.js';
 
@@ -173,6 +175,78 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['action'],
         },
       },
+      {
+        name: 'get_history',
+        description: `查詢 Home Assistant 實體的歷史紀錄。
+可以查詢指定時間範圍內的狀態變化，支援多個實體同時查詢。
+適合用於：
+- 查詢溫度、濕度等感測器的歷史趨勢
+- 查看設備在某段時間的使用情況
+- 分析狀態變化模式`,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            entity_id: {
+              type: 'string',
+              description: '實體 ID，多個實體用逗號分隔，例如: "sensor.temperature,sensor.humidity"',
+            },
+            start_time: {
+              type: 'string',
+              description: '開始時間（ISO 8601 格式），預設為 24 小時前',
+            },
+            end_time: {
+              type: 'string',
+              description: '結束時間（ISO 8601 格式），預設為現在',
+            },
+          },
+          required: ['entity_id'],
+        },
+      },
+      {
+        name: 'manage_event_subscription',
+        description: `管理事件訂閱。可以新增、列出、啟用、停用或刪除事件訂閱。
+
+事件訂閱會由 Event Listener 背景服務監聽 Home Assistant WebSocket API，當事件觸發時，透過 Claude 生成友善通知訊息發送到 Slack。
+
+常見事件類型：
+- "automation_triggered" — 自動化觸發時通知
+- "state_changed" — 實體狀態變更時通知（建議搭配 entity_filter 使用）
+- "call_service" — 服務呼叫時通知
+- "script_started" — 腳本執行時通知
+
+注意：state_changed 事件頻率較高，建議設定 entity_filter 過濾特定實體。`,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['create', 'list', 'enable', 'disable', 'delete'],
+              description: '操作類型：create（新增）、list（列出）、enable（啟用）、disable（停用）、delete（刪除）',
+            },
+            name: {
+              type: 'string',
+              description: '訂閱名稱（create 時必填），也可用於搜尋訂閱',
+            },
+            event_type: {
+              type: 'string',
+              description: 'HA 事件類型（create 時必填），如 "automation_triggered"、"state_changed"',
+            },
+            entity_filter: {
+              type: 'string',
+              description: '可選的 entity_id 過濾條件，支援 * 萬用字元，如 "binary_sensor.front_*"',
+            },
+            description: {
+              type: 'string',
+              description: '給 Claude 的提示，描述如何生成通知訊息',
+            },
+            id: {
+              type: 'string',
+              description: '訂閱 ID（enable、disable、delete 時使用）',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -196,6 +270,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'manage_schedule':
         result = await executeManageSchedule(args as unknown as ManageScheduleInput);
+        break;
+      case 'get_history':
+        result = await executeGetHistory(haClient, args as unknown as GetHistoryInput);
+        break;
+      case 'manage_event_subscription':
+        result = await executeManageEventSubscription(args as unknown as ManageEventSubscriptionInput);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

@@ -16,6 +16,7 @@
     "mcp": "node dist/interfaces/mcp-server.js",
     "slack": "node dist/interfaces/slack-bot.js",
     "scheduler": "node dist/interfaces/scheduler-daemon.js",
+    "event-listener": "node dist/interfaces/event-listener-daemon.js",
     "web-ui": "node dist/interfaces/web-ui.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -27,13 +28,15 @@
     "@anthropic-ai/sdk": "^0.30.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@slack/bolt": "^3.17.0",
+    "dotenv": "^16.0.0",
     "node-cron": "^3.0.0",
-    "dotenv": "^16.0.0"
+    "ws": "^8.19.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
     "@types/node-cron": "^3.0.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.0.0",
     "vitest": "^1.0.0"
   },
   "engines": {

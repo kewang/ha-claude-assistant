@@ -8,6 +8,7 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 - **Slack Bot**：透過 Slack 與 Claude 對話，控制智慧家庭設備
 - **對話記憶**：支援多輪對話上下文，Slack thread、CLI session、排程任務都能記住前文
 - **排程服務**：設定定時任務，例如每天早上報告天氣和設備狀態
+- **即時事件通知**：透過 WebSocket 監聽 HA 事件（automation 觸發、狀態變更等），由 Claude 生成友善通知
 - **自然語言控制**：用自然語言控制燈光、開關、空調等設備
 - **多種介面**：CLI、MCP Server（Claude Code）、Slack Bot
 

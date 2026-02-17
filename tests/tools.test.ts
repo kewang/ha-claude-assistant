@@ -1,16 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { haTools, listEntitiesTool, getStateTool, callServiceTool, manageScheduleTool, getHistoryTool } from '../src/tools/index.js';
+import { haTools, listEntitiesTool, getStateTool, callServiceTool, manageScheduleTool, getHistoryTool, manageEventSubscriptionTool } from '../src/tools/index.js';
 
 describe('Tools', () => {
   describe('haTools array', () => {
     it('should contain all tools', () => {
-      expect(haTools).toHaveLength(5);
+      expect(haTools).toHaveLength(6);
       expect(haTools.map(t => t.name)).toEqual([
         'list_entities',
         'get_state',
         'call_service',
         'manage_schedule',
         'get_history',
+        'manage_event_subscription',
       ]);
     });
   });

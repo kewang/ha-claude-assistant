@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.7.0] - 2026-02-18
+
+### Added
+- **WebSocket 即時事件監聽**：透過 HA WebSocket API 即時接收事件，不需修改任何 HA automation
+  - 新增 `HAWebSocket` 模組，支援自動重連（指數退避）和心跳維持
+  - 新增 `EventSubscriptionStore` 事件訂閱持久化儲存
+  - 新增 `event-listener-daemon` 背景服務，監聽事件並透過 Claude CLI 生成友善通知
+  - 並發控制：最多 3 個 Claude CLI 同時執行，佇列上限 20
+- **NotificationManager 通知管理架構**：統一所有通知發送邏輯
+  - Adapter 模式支援多渠道（目前 Slack，未來可擴展 Telegram/Discord/LINE）
+  - Scheduler daemon 重構為使用 NotificationManager
+- **manage_event_subscription MCP tool**：透過 Claude 自然語言管理事件訂閱（新增/列出/啟用/停用/刪除）
+- MCP Server 新增 `get_history` 和 `manage_event_subscription` tool handler
+- Add-on `run.sh` 新增啟動 event-listener-daemon
+
+### Changed
+- `scheduler-daemon` 從直接呼叫 Slack API 改為透過 NotificationManager 發送通知
+- 新增 `ws` 依賴（WebSocket client for Node.js 20）
+
+## [1.6.0] - 2026-02-17
+
+### Added
+- **get_history MCP tool**：查詢 HA 實體歷史紀錄，支援多實體和時間範圍
+- 新增 OpenSpec 工作流程規範
+- 新增專案 roadmap 文件
+- 新增所有既有模組的 OpenSpec specs
+
 ## [1.5.0] - 2026-02-07
 
 ### Added

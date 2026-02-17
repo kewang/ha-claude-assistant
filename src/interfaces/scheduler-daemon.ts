@@ -14,11 +14,11 @@ import { config } from 'dotenv';
 import cron from 'node-cron';
 import type { ScheduledTask } from 'node-cron';
 import { spawn } from 'child_process';
-import { WebClient } from '@slack/web-api';
 import { ScheduleStore, type StoredSchedule } from '../core/schedule-store.js';
 import { ConversationStore, buildPromptWithHistory } from '../core/conversation-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
+import { getNotificationManager } from '../core/notification/index.js';
 import { createLogger } from '../utils/logger.js';
 import { VERSION } from '../version.js';
 
@@ -29,14 +29,8 @@ const logger = createLogger('Scheduler');
 // 取得環境設定
 const env = detectEnvironment();
 
-// Slack 設定
-const slackToken = process.env.SLACK_BOT_TOKEN;
-const slackChannel = process.env.SLACK_DEFAULT_CHANNEL;
-
-let slackClient: WebClient | null = null;
-if (slackToken) {
-  slackClient = new WebClient(slackToken);
-}
+// 通知管理
+const notificationManager = getNotificationManager();
 
 // 排程管理
 const store = new ScheduleStore();
@@ -73,24 +67,18 @@ function isTokenExpiredError(stdout: string, stderr: string): boolean {
 }
 
 /**
- * 發送訊息到 Slack
+ * 發送通知訊息
  */
-async function sendToSlack(message: string): Promise<void> {
-  if (!slackClient || !slackChannel) {
-    logger.info('Slack not configured, skipping notification');
-    logger.info('Message:', message);
-    return;
-  }
+async function sendNotification(message: string): Promise<void> {
+  const results = await notificationManager.send({
+    text: message,
+    markdown: message,
+    source: 'schedule',
+  });
 
-  try {
-    await slackClient.chat.postMessage({
-      channel: slackChannel,
-      text: message,
-      mrkdwn: true,
-    });
-    logger.info('Sent to Slack');
-  } catch (error) {
-    logger.error('Failed to send to Slack:', error);
+  if (results.length === 0) {
+    logger.info('No notification channels configured, skipping notification');
+    logger.info('Message:', message);
   }
 }
 
@@ -213,7 +201,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
       `*錯誤*: Token 已過期，需要重新登入`,
     ].join('\n');
 
-    await sendToSlack(message);
+    await sendNotification(message);
     logger.error(`Failed: ${schedule.name} - Token needs relogin`);
     return;
   }
@@ -251,7 +239,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
       result.output,
     ].join('\n');
 
-    await sendToSlack(message);
+    await sendNotification(message);
     logger.info(`Completed: ${schedule.name}`);
   } else {
     const errorMsg = result.error?.message || 'Unknown error';
@@ -263,7 +251,7 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
       `*錯誤*: ${errorMsg}`,
     ].join('\n');
 
-    await sendToSlack(message);
+    await sendNotification(message);
     logger.error(`Failed: ${schedule.name}`, result.error);
   }
 }
@@ -342,8 +330,8 @@ async function main(): Promise<void> {
   logger.info(`Starting scheduler daemon v${VERSION}...`);
   logger.info(`Timezone: ${timezone}`);
 
-  if (slackClient && slackChannel) {
-    logger.info(`Slack channel: ${slackChannel}`);
+  if (process.env.SLACK_BOT_TOKEN && process.env.SLACK_DEFAULT_CHANNEL) {
+    logger.info(`Slack channel: ${process.env.SLACK_DEFAULT_CHANNEL}`);
   } else {
     logger.info('Slack not configured (SLACK_BOT_TOKEN or SLACK_DEFAULT_CHANNEL missing)');
   }
@@ -351,12 +339,10 @@ async function main(): Promise<void> {
   // 初始化 Token 刷新服務
   const tokenRefreshService = getTokenRefreshService();
 
-  // 設定 Slack 通知回呼
-  if (slackClient && slackChannel) {
-    tokenRefreshService.setNotificationCallback(async (message: string) => {
-      await sendToSlack(message);
-    });
-  }
+  // 設定通知回呼
+  tokenRefreshService.setNotificationCallback(async (message: string) => {
+    await sendNotification(message);
+  });
 
   // 啟動 Token 刷新服務
   tokenRefreshService.start();

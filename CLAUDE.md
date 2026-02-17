@@ -47,6 +47,7 @@ npm run cli          # CLI 互動模式
 npm run mcp          # MCP Server（給 Claude Code）
 npm run slack        # Slack Bot
 npm run scheduler    # 排程服務（背景執行）
+npm run event-listener # 事件監聽服務（背景執行）
 ```
 
 ## 專案結構
@@ -55,7 +56,13 @@ npm run scheduler    # 排程服務（背景執行）
 src/
 ├── core/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
+│   ├── ha-websocket.ts   # Home Assistant WebSocket API 連線
 │   ├── schedule-store.ts # 排程持久化儲存
+│   ├── event-subscription-store.ts # 事件訂閱持久化儲存
+│   ├── notification/     # 通知管理（adapter 模式）
+│   │   ├── types.ts      # 通知介面定義
+│   │   ├── manager.ts    # NotificationManager
+│   │   └── adapters/slack.ts # Slack adapter
 │   ├── conversation-store.ts # 對話記憶持久化
 │   ├── env-detect.ts     # 環境偵測（Add-on / 一般環境）
 │   ├── claude-token-refresh.ts # OAuth Token 自動刷新
@@ -64,12 +71,14 @@ src/
 │   ├── cli.ts            # CLI 互動介面（使用 Claude CLI）
 │   ├── mcp-server.ts     # MCP Server（stdio）
 │   ├── slack-bot.ts      # Slack Bot（使用 Claude CLI）
-│   └── scheduler-daemon.ts # 排程服務（使用 Claude CLI）
+│   ├── scheduler-daemon.ts # 排程服務（使用 Claude CLI）
+│   └── event-listener-daemon.ts # 事件監聽服務（WebSocket + Claude CLI）
 ├── tools/                # MCP Tools 定義
 │   ├── list-entities.ts  # 列出實體
 │   ├── get-states.ts     # 取得狀態
 │   ├── call-service.ts   # 呼叫服務
 │   ├── manage-schedule.ts # 管理排程
+│   ├── manage-event-subscription.ts # 管理事件訂閱
 │   └── index.ts          # Tools 匯出
 ├── utils/
 │   └── logger.ts         # 統一 Logger（含時間戳記）
@@ -217,12 +226,14 @@ const logger = createLogger('MCP', { useStderr: true });
 
 ## Claude Tools
 
-四個主要工具供 Claude 使用：
+六個主要工具供 Claude 使用：
 
 1. **list_entities** - 列出實體，可用 `domain` 或 `search` 過濾
 2. **get_state** - 取得實體詳細狀態，需要 `entity_id`
 3. **call_service** - 呼叫 HA 服務，需要 `domain` + `service`
 4. **manage_schedule** - 管理排程任務，支援 `create`、`list`、`enable`、`disable`、`delete` 操作
+5. **get_history** - 查詢實體歷史紀錄，需要 `entity_id`
+6. **manage_event_subscription** - 管理事件訂閱，支援 `create`、`list`、`enable`、`disable`、`delete` 操作
 
 ## 新增功能指引
 
@@ -326,6 +337,46 @@ pm2 start dist/interfaces/scheduler-daemon.js --name ha-scheduler
 
 - `claude` CLI 已安裝並登入
 - 設定 `SLACK_BOT_TOKEN` 和 `SLACK_DEFAULT_CHANNEL`（用於發送通知）
+
+## 事件監聽服務
+
+事件監聽服務 (`event-listener-daemon`) 透過 HA WebSocket API 即時監聽事件，比對訂閱規則後呼叫 Claude CLI 生成友善通知訊息。
+
+### 啟動方式
+
+```bash
+# 直接執行
+npm run event-listener
+
+# 使用 PM2 持續運行
+pm2 start dist/interfaces/event-listener-daemon.js --name ha-event-listener
+```
+
+### 運作流程
+
+1. 使用者透過 Claude：「幫我訂閱所有 automation 觸發通知」
+2. Claude 呼叫 `manage_event_subscription` tool，寫入 `data/event-subscriptions.json`
+3. 事件監聽服務偵測到檔案變更，同步 WebSocket 訂閱
+4. 當 HA automation 觸發時，WebSocket 收到事件
+5. 呼叫 Claude CLI 生成友善訊息，發送到 Slack
+
+### 前置需求
+
+- `claude` CLI 已安裝並登入
+- 設定 `SLACK_BOT_TOKEN` 和 `SLACK_DEFAULT_CHANNEL`（用於發送通知）
+- HA WebSocket API 可連線（使用與 REST API 相同的 URL/Token）
+
+### 事件訂閱設定
+
+事件訂閱存在 `data/event-subscriptions.json`（Add-on: `/data/event-subscriptions/event-subscriptions.json`），支援：
+- `eventType`: 事件類型（如 `automation_triggered`、`state_changed`）
+- `entityFilter`: 可選的 entity_id 過濾條件，支援 `*` 萬用字元
+- `description`: 給 Claude 的提示，描述如何生成通知訊息
+
+### 並發控制
+
+- 最多同時 3 個 Claude CLI 程序
+- 事件佇列上限 20，超過時丟棄最舊的事件
 
 ## Claude CLI Credentials 格式
 

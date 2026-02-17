@@ -175,6 +175,8 @@ PERMISSIONS_TO_ADD=(
     "mcp__ha-assistant__get_state"
     "mcp__ha-assistant__call_service"
     "mcp__ha-assistant__manage_schedule"
+    "mcp__ha-assistant__get_history"
+    "mcp__ha-assistant__manage_event_subscription"
 )
 
 if [ -f "$MCP_CONFIG_FILE" ]; then
@@ -224,6 +226,12 @@ echo "Starting Scheduler daemon..."
 node /app/dist/interfaces/scheduler-daemon.js &
 SCHEDULER_PID=$!
 echo "Scheduler started (PID: $SCHEDULER_PID)"
+
+# 啟動 Event Listener（背景執行）
+echo "Starting Event Listener daemon..."
+node /app/dist/interfaces/event-listener-daemon.js &
+EVENT_LISTENER_PID=$!
+echo "Event Listener started (PID: $EVENT_LISTENER_PID)"
 
 # 啟動 Slack Bot（前景執行）
 echo "Starting Slack Bot..."
