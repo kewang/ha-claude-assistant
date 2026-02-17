@@ -4,6 +4,19 @@
 
 這是一個 Claude AI 驅動的智慧家庭助理，整合 Home Assistant。使用 TypeScript + ESM 開發。
 
+## 開發流程
+
+所有功能開發、修改、Bug 修復都必須走 OpenSpec 流程。請使用以下 skill 進行操作：
+
+- `/opsx:new` - 開始新的變更
+- `/opsx:continue` - 繼續產生下一個 artifact
+- `/opsx:ff` - 快速產生所有 artifact
+- `/opsx:apply` - 實作變更
+- `/opsx:verify` - 驗證實作是否符合 artifact
+- `/opsx:archive` - 歸檔已完成的變更
+
+**不要直接修改程式碼，一律先建立 OpenSpec change 再進行實作。**
+
 ## 技術棧
 
 - **Runtime**: Node.js 20+
