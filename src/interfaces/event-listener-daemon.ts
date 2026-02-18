@@ -12,6 +12,7 @@
 import { config } from 'dotenv';
 import { spawn } from 'child_process';
 import { HAWebSocket, type HAEvent } from '../core/ha-websocket.js';
+import { HAClient } from '../core/ha-client.js';
 import { EventSubscriptionStore, type StoredEventSubscription } from '../core/event-subscription-store.js';
 import { getNotificationManager } from '../core/notification/index.js';
 import { detectEnvironment } from '../core/env-detect.js';
@@ -35,6 +36,7 @@ const eventQueue: Array<{ event: HAEvent; subscription: StoredEventSubscription 
 
 const store = new EventSubscriptionStore();
 const notificationManager = getNotificationManager();
+const haClient = new HAClient();
 let haWebSocket: HAWebSocket;
 
 // Track which event types we've subscribed to on the WebSocket
@@ -154,9 +156,38 @@ function matchWildcard(pattern: string, text: string): boolean {
 }
 
 /**
+ * 取得自動化設定（包含 trigger、condition、action）
+ */
+async function fetchAutomationConfig(entityId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const state = await haClient.getState(entityId);
+    const automationId = state.attributes.id as string | undefined;
+    if (!automationId) {
+      logger.warn(`No automation id found in attributes for ${entityId}`);
+      return null;
+    }
+
+    const baseUrl = haClient.getCurrentUrl();
+    const response = await fetch(`${baseUrl}/api/config/automation/config/${automationId}`, {
+      headers: {
+        'Authorization': `Bearer ${env.isAddon ? process.env.SUPERVISOR_TOKEN : process.env.HA_TOKEN}`,
+      },
+    });
+    if (!response.ok) {
+      logger.warn(`Failed to fetch automation config: HTTP ${response.status}`);
+      return null;
+    }
+    return await response.json() as Record<string, unknown>;
+  } catch (error) {
+    logger.warn(`Failed to fetch automation config for ${entityId}:`, error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
  * 建立 Claude prompt
  */
-function buildEventPrompt(event: HAEvent, subscription: StoredEventSubscription): string {
+function buildEventPrompt(event: HAEvent, subscription: StoredEventSubscription, automationConfig?: Record<string, unknown> | null): string {
   const time = new Date(event.time_fired).toLocaleString('zh-TW', { timeZone: timezone });
 
   const parts = [
@@ -173,7 +204,12 @@ function buildEventPrompt(event: HAEvent, subscription: StoredEventSubscription)
     parts.push(`自動化 ID: ${data.entity_id}`);
     if (data.name) parts.push(`自動化名稱: ${data.name}`);
     if (data.source) parts.push(`觸發來源: ${data.source}`);
-    if (data.variables) parts.push(`觸發詳情: ${JSON.stringify(data.variables, null, 2)}`);
+    if (automationConfig?.action) {
+      parts.push(`自動化動作: ${JSON.stringify(automationConfig.action, null, 2)}`);
+    }
+    if (automationConfig?.description) {
+      parts.push(`自動化描述: ${automationConfig.description}`);
+    }
   }
 
   // state_changed 事件
@@ -224,8 +260,14 @@ async function processEvent(event: HAEvent, subscription: StoredEventSubscriptio
     return;
   }
 
+  // 取得自動化設定（如適用）
+  let automationConfig: Record<string, unknown> | null = null;
+  if (event.event_type === 'automation_triggered' && event.data.entity_id) {
+    automationConfig = await fetchAutomationConfig(event.data.entity_id as string);
+  }
+
   // 建立 prompt 並執行 Claude CLI
-  const prompt = buildEventPrompt(event, subscription);
+  const prompt = buildEventPrompt(event, subscription, automationConfig);
   let result = await executeClaudePrompt(prompt);
 
   // Token 過期重試

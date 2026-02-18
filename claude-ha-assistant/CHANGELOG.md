@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.4] - 2026-02-18
+
+### Fixed
+- 改善 automation_triggered 事件通知內容：透過 HA Config API 取得自動化的完整設定，在 prompt 中包含實際動作（action）和描述（description），讓 Claude 生成更具體的通知（例如「已自動開啟客廳燈」而非「自動化已觸發」）
+
 ## [1.7.3] - 2026-02-18
 
 ### Fixed
