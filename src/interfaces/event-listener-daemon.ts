@@ -160,31 +160,24 @@ function matchWildcard(pattern: string, text: string): boolean {
  */
 async function fetchAutomationConfig(entityId: string): Promise<Record<string, unknown> | null> {
   try {
-    logger.info(`Fetching automation config for ${entityId}...`);
     const state = await haClient.getState(entityId);
     const automationId = state.attributes.id as string | undefined;
-    logger.info(`Automation state attributes: ${JSON.stringify(state.attributes)}`);
     if (!automationId) {
       logger.warn(`No automation id found in attributes for ${entityId}`);
       return null;
     }
 
     const baseUrl = haClient.getCurrentUrl();
-    const url = `${baseUrl}/api/config/automation/config/${automationId}`;
-    logger.info(`Fetching config from: ${url}`);
-    const response = await fetch(url, {
+    const response = await fetch(`${baseUrl}/api/config/automation/config/${automationId}`, {
       headers: {
         'Authorization': `Bearer ${env.isAddon ? process.env.SUPERVISOR_TOKEN : process.env.HA_TOKEN}`,
       },
     });
     if (!response.ok) {
-      const body = await response.text();
-      logger.warn(`Failed to fetch automation config: HTTP ${response.status}, body: ${body}`);
+      logger.warn(`Failed to fetch automation config: HTTP ${response.status}`);
       return null;
     }
-    const config = await response.json() as Record<string, unknown>;
-    logger.info(`Automation config: ${JSON.stringify(config)}`);
-    return config;
+    return await response.json() as Record<string, unknown>;
   } catch (error) {
     logger.warn(`Failed to fetch automation config for ${entityId}:`, error instanceof Error ? error.message : error);
     return null;
@@ -271,12 +264,10 @@ async function processEvent(event: HAEvent, subscription: StoredEventSubscriptio
   let automationConfig: Record<string, unknown> | null = null;
   if (event.event_type === 'automation_triggered' && event.data.entity_id) {
     automationConfig = await fetchAutomationConfig(event.data.entity_id as string);
-    logger.info(`automationConfig result: ${automationConfig ? 'found' : 'null'}`);
   }
 
   // 建立 prompt 並執行 Claude CLI
   const prompt = buildEventPrompt(event, subscription, automationConfig);
-  logger.info(`Claude prompt:\n${prompt}`);
   let result = await executeClaudePrompt(prompt);
 
   // Token 過期重試

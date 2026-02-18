@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.7.7] - 2026-02-18
+
+### Fixed
+- 改善 automation_triggered 事件通知品質：透過 HA Config API 取得自動化的完整設定（actions、description），讓 Claude 能描述自動化實際執行了什麼動作
+- 移除 debug logging
+
 ## [1.7.4] - 2026-02-18
 
 ### Fixed
