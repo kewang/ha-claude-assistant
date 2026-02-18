@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0] - 2026-02-18
+
+### Added
+- Slack thread 自動回覆：在 bot 已參與的 thread 中，使用者不需 @mention 即可繼續對話
+- DM 訊息支援 thread 回覆，不再需要每次 @mention
+- 啟動時自動取得 bot user ID，避免 @mention 訊息重複處理
+
 ## [1.7.7] - 2026-02-18
 
 ### Fixed

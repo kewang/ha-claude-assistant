@@ -123,6 +123,7 @@ class SlackBot {
   private haClient: HAClient;
   private conversationStore: ConversationStore;
   private defaultChannelId?: string;
+  private botUserId?: string;
   private reconnectAttempts = 0;
   private reconnecting = false;
 
@@ -233,21 +234,34 @@ class SlackBot {
   }
 
   private setupEventHandlers(): void {
-    // 處理 DM 訊息
+    // 處理 DM 訊息和 channel thread 自動回覆
     this.app.message(async ({ message, say }) => {
-      // 只處理一般訊息（非 bot、非 thread）
       if (message.subtype !== undefined) return;
       if (!('user' in message) || !message.user) return;
       if (!('text' in message) || !message.text) return;
+      if ('bot_id' in message) return;
 
       const userId = message.user;
       const text = message.text;
       const threadTs = ('thread_ts' in message ? message.thread_ts : undefined) || message.ts;
+      const isThreadReply = 'thread_ts' in message && message.thread_ts !== undefined;
+      const isDM = 'channel_type' in message && message.channel_type === 'im';
 
-      // 忽略 bot 自己的訊息
-      if ('bot_id' in message) return;
+      // Channel 訊息處理邏輯
+      if (!isDM) {
+        // 含 @mention 的訊息交給 app_mention handler 處理，避免重複
+        if (this.botUserId && text.includes(`<@${this.botUserId}>`)) return;
 
-      logger.info(`Message from ${userId}: ${text}`);
+        // 非 thread 回覆的一般 channel 訊息，忽略（需 @mention 才觸發）
+        if (!isThreadReply) return;
+
+        // Thread 回覆：檢查 bot 是否參與過此 thread
+        const conversationKey = `slack:${threadTs}`;
+        const history = await this.conversationStore.getHistory(conversationKey);
+        if (history.length === 0) return;
+      }
+
+      logger.info(`Message from ${userId} (${isDM ? 'DM' : 'thread'}): ${text}`);
 
       // 先回覆「處理中」提示
       const thinkingMsg = await say({
@@ -452,6 +466,15 @@ class SlackBot {
     // 初始化對話記憶
     await this.conversationStore.init();
     await this.conversationStore.cleanup();
+
+    // 取得 bot user ID（用於判斷 @mention 避免重複處理）
+    try {
+      const authResult = await this.app.client.auth.test();
+      this.botUserId = authResult.user_id as string;
+      logger.info(`Bot user ID: ${this.botUserId}`);
+    } catch (error) {
+      logger.error('無法取得 bot user ID:', error);
+    }
 
     // 自動偵測 Home Assistant 連線
     try {
