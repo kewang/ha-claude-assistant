@@ -211,8 +211,8 @@ function buildEventPrompt(event: HAEvent, subscription: StoredEventSubscription,
     parts.push(`自動化 ID: ${data.entity_id}`);
     if (data.name) parts.push(`自動化名稱: ${data.name}`);
     if (data.source) parts.push(`觸發來源: ${data.source}`);
-    if (automationConfig?.action) {
-      parts.push(`自動化動作: ${JSON.stringify(automationConfig.action, null, 2)}`);
+    if (automationConfig?.actions) {
+      parts.push(`自動化動作: ${JSON.stringify(automationConfig.actions, null, 2)}`);
     }
     if (automationConfig?.description) {
       parts.push(`自動化描述: ${automationConfig.description}`);
