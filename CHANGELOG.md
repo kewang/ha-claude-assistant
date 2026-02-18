@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.3] - 2026-02-18
+
+### Fixed
+- 修正 automation_triggered 事件通知過於空泛：現在會包含觸發來源（source）和觸發詳情（variables），讓 Claude 生成更有意義的通知訊息
+
 ## [1.7.2] - 2026-02-18
 
 ### Fixed

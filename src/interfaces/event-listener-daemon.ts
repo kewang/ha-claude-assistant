@@ -172,6 +172,8 @@ function buildEventPrompt(event: HAEvent, subscription: StoredEventSubscription)
   if (event.event_type === 'automation_triggered' && data.entity_id) {
     parts.push(`自動化 ID: ${data.entity_id}`);
     if (data.name) parts.push(`自動化名稱: ${data.name}`);
+    if (data.source) parts.push(`觸發來源: ${data.source}`);
+    if (data.variables) parts.push(`觸發詳情: ${JSON.stringify(data.variables, null, 2)}`);
   }
 
   // state_changed 事件
