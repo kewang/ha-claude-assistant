@@ -32,6 +32,8 @@ export CLAUDE_CONFIG_DIR="/data/claude"
 # 確保必要的目錄存在
 mkdir -p "$CLAUDE_CONFIG_DIR"
 mkdir -p "$(dirname "$SCHEDULE_DATA_PATH")"
+mkdir -p /data/conversations
+mkdir -p /data/event-subscriptions
 
 # 確保 schedules.json 存在
 if [ ! -f "$SCHEDULE_DATA_PATH" ]; then
@@ -42,6 +44,8 @@ fi
 chown -R claude:claude "$CLAUDE_CONFIG_DIR"
 chown -R claude:claude "$(dirname "$SCHEDULE_DATA_PATH")"
 chown claude:claude "$SCHEDULE_DATA_PATH"
+chown -R claude:claude /data/conversations
+chown -R claude:claude /data/event-subscriptions
 
 # 建立 claude-run wrapper（以 claude 用戶身份執行 claude CLI）
 cat > /usr/local/bin/claude-run << WRAPPER

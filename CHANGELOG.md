@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.7.2] - 2026-02-18
+
+### Fixed
+- 修正 Add-on `/data` 目錄權限不一致：`conversations/` 和 `event-subscriptions/` 現在與其他目錄一樣統一為 `claude:claude` 擁有者
+
 ## [1.7.1] - 2026-02-18
 
 ### Fixed
