@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.0] - 2026-02-22
+
+### Changed
+- 預設 Claude 模型改為 `sonnet` 別名，由 CLI 自動解析為最新 Sonnet 版本，無需手動更新模型 ID
+- 補齊 README.md、CLAUDE.md、.env.example、DOCS.md 缺漏的文件內容：環境變數（`CLAUDE_MODEL`、`MEMORY_MAX_ITEMS`、`WEB_UI_PORT`、`DEBUG`）、`npm run web-ui` 指令、事件訂閱持久化路徑、核心類別 API 說明、notification adapter 架構說明
+
 ## [1.9.13] - 2026-02-21
 
 ### Fixed

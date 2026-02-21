@@ -89,12 +89,22 @@ SLACK_APP_TOKEN=xapp-your-app-token
 SLACK_DEFAULT_CHANNEL=C0123456789
 
 # Claude CLI 設定（選用）
-CLAUDE_TIMEOUT_MS=180000  # Claude CLI 執行 timeout（預設 3 分鐘）
+CLAUDE_MODEL=sonnet  # Claude 模型（預設 sonnet，由 CLI 解析為最新 Sonnet）
+CLAUDE_TIMEOUT_MS=180000               # Claude CLI 執行 timeout（預設 3 分鐘）
 
 # 對話記憶設定（選用）
 CONVERSATION_MAX_TURNS=20       # 每組對話最多保留幾筆 turn（預設 20）
 CONVERSATION_MAX_CHARS=8000     # 歷史文字上限（預設 8000）
 CONVERSATION_MAX_AGE_DAYS=7     # 過期清除天數（預設 7）
+
+# 長期記憶設定（選用）
+MEMORY_MAX_ITEMS=100  # 長期記憶上限（預設 100）
+
+# Web UI 設定（選用）
+WEB_UI_PORT=8099  # Web UI 埠號（預設 8099）
+
+# 除錯（選用）
+DEBUG=1  # 啟用 debug 日誌輸出
 ```
 
 > 注意：設定 `HA_URL_EXTERNAL` 後，系統會自動偵測連線，優先使用內網。
@@ -153,6 +163,14 @@ npm run cli
 npm run cli "列出所有燈具"
 npm run cli "把客廳的燈打開"
 ```
+
+### Web UI（手動安裝）
+
+```bash
+npm run web-ui
+```
+
+啟動 Web UI 伺服器（預設 port 8099），提供 Claude 登入介面。在 Add-on 環境下會自動啟動，無需手動執行。
 
 ### MCP Server（Claude Code 整合）
 
@@ -274,6 +292,7 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 - **排程設定**：儲存在 `/data/schedules/schedules.json`
 - **對話記憶**：儲存在 `/data/conversations/conversations.json`
 - **長期記憶**：儲存在 `/data/memories/memories.json`
+- **事件訂閱**：儲存在 `/data/event-subscriptions/event-subscriptions.json`
 
 ## 技術架構
 
@@ -359,7 +378,7 @@ ha-claude-assistant/
 管理事件訂閱，支援建立、列出、啟用、停用、刪除。可設定 entity filter 過濾特定實體。
 
 ### manage_memory
-管理長期記憶，支援新增、列出、刪除。記憶會在 Slack Bot 和排程執行時自動注入 Claude 的 prompt。
+管理長期記憶，支援新增、列出、搜尋、更新、刪除。記憶會在 Slack Bot 和排程執行時自動注入 Claude 的 prompt。
 
 ## 開發
 

@@ -4,7 +4,7 @@
     "retryAttempts": 3
   },
   "claude": {
-    "model": "claude-sonnet-4-20250514",
+    "model": "sonnet",
     "maxTokens": 4096
   },
   "scheduler": {

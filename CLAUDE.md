@@ -57,31 +57,40 @@ src/
 ├── core/
 │   ├── ha-client.ts      # Home Assistant REST API 封裝
 │   ├── ha-websocket.ts   # Home Assistant WebSocket API 連線
+│   ├── claude-agent.ts   # Claude AI 對話核心（agentic loop + tool 呼叫）
+│   ├── scheduler.ts      # 排程執行引擎（cron + ClaudeAgent）
 │   ├── schedule-store.ts # 排程持久化儲存
 │   ├── event-subscription-store.ts # 事件訂閱持久化儲存
+│   ├── memory-store.ts   # 長期記憶持久化儲存
 │   ├── notification/     # 通知管理（adapter 模式）
-│   │   ├── types.ts      # 通知介面定義
+│   │   ├── types.ts      # 通知介面定義（ChannelType）
 │   │   ├── manager.ts    # NotificationManager
 │   │   └── adapters/slack.ts # Slack adapter
 │   ├── conversation-store.ts # 對話記憶持久化
 │   ├── env-detect.ts     # 環境偵測（Add-on / 一般環境）
 │   ├── claude-token-refresh.ts # OAuth Token 自動刷新
-│   └── claude-oauth-config.ts  # OAuth 設定動態提取
+│   ├── claude-oauth-config.ts  # OAuth 設定動態提取
+│   └── claude-oauth-flow.ts    # OAuth PKCE Flow 實作
 ├── interfaces/
 │   ├── cli.ts            # CLI 互動介面（使用 Claude CLI）
 │   ├── mcp-server.ts     # MCP Server（stdio）
 │   ├── slack-bot.ts      # Slack Bot（使用 Claude CLI）
 │   ├── scheduler-daemon.ts # 排程服務（使用 Claude CLI）
-│   └── event-listener-daemon.ts # 事件監聽服務（WebSocket + Claude CLI）
+│   ├── event-listener-daemon.ts # 事件監聽服務（WebSocket + Claude CLI）
+│   ├── web-ui.ts         # Web UI HTTP Server（OAuth 登入）
+│   └── web-ui-html.ts    # Web UI HTML Template
 ├── tools/                # MCP Tools 定義
 │   ├── list-entities.ts  # 列出實體
 │   ├── get-states.ts     # 取得狀態
 │   ├── call-service.ts   # 呼叫服務
+│   ├── get-history.ts    # 查詢歷史紀錄
 │   ├── manage-schedule.ts # 管理排程
 │   ├── manage-event-subscription.ts # 管理事件訂閱
+│   ├── manage-memory.ts  # 管理長期記憶
 │   └── index.ts          # Tools 匯出
 ├── utils/
-│   └── logger.ts         # 統一 Logger（含時間戳記）
+│   ├── logger.ts         # 統一 Logger（含時間戳記）
+│   └── tool-schema-converter.ts # Anthropic SDK Tool → MCP Tool 格式轉換
 ├── index.ts              # 主程式進入點
 └── test-ha.ts            # HA 連線測試腳本
 
@@ -178,6 +187,68 @@ SLACK_DEFAULT_CHANNEL=C...
 - CLI: `cli:session-${timestamp}`
 - Scheduler: `schedule:${schedule.id}`
 
+### ClaudeAgent (claude-agent.ts)
+
+Claude AI 對話核心，實作 agentic loop，自動呼叫 HA tools 完成任務。
+
+```typescript
+import { ClaudeAgent } from './core/claude-agent.js';
+
+const agent = new ClaudeAgent({ model: 'sonnet' });
+agent.setSystemPrompt('你是智慧家庭助理');
+
+const response = await agent.chat('把客廳燈打開'); // 多輪對話（含歷史）
+const result = await agent.query('現在溫度幾度？'); // 單次查詢（無歷史）
+```
+
+- `chat(userMessage)` - 多輪對話，自動呼叫 tools 並累積歷史
+- `query(message)` - 單次查詢，不保留歷史
+- `setSystemPrompt(prompt)` / `getSystemPrompt()` - 設定/取得系統提示
+- `clearHistory()` - 清除對話歷史
+- `getHistoryLength()` - 取得歷史長度
+
+設定：
+- 模型可透過 `CLAUDE_MODEL` 環境變數覆寫（預設 `sonnet`，由 CLI 解析為最新 Sonnet）
+
+### Scheduler (scheduler.ts)
+
+排程執行引擎，使用 cron 表達式定期執行 Claude prompt。
+
+- `addJob(schedule)` - 新增排程任務
+- `removeJob(id)` - 移除排程任務
+- `updateJob(id, updates)` - 更新排程任務
+- `enableJob(id)` / `disableJob(id)` - 啟用/停用任務
+- `executeJob(id)` - 手動執行任務
+- `startAll()` / `stopAll()` - 啟動/停止所有排程
+- `loadJobs()` - 從 ScheduleStore 載入排程
+- `getJobs()` / `getJob(id)` - 查詢排程
+
+使用 `node-cron`，時區預設 `Asia/Taipei`。
+
+### NotificationManager (notification/manager.ts)
+
+通知管理，使用 adapter 模式支援多通道。
+
+```typescript
+import { getNotificationManager } from './core/notification/index.js';
+
+const manager = getNotificationManager(); // singleton
+await manager.send('訊息內容');
+await manager.send('訊息內容', { channel: 'C1234567890' });
+```
+
+- `registerAdapter(adapter)` - 註冊通知 adapter
+- `send(message, options?)` - 發送通知
+
+目前支援的 ChannelType（定義在 `notification/types.ts`）：
+- `slack` - 已實作（`adapters/slack.ts`）
+- `telegram` / `discord` / `line` - 預留介面，尚未實作
+
+新增 adapter 方式：
+1. 在 `src/core/notification/adapters/` 建立新檔案
+2. 實作 `NotificationAdapter` 介面（`send()`、`isConfigured()`）
+3. 在 `NotificationManager` 中註冊
+
 ### ClaudeTokenRefreshService (claude-token-refresh.ts)
 - `start()` - 啟動定期檢查（每 5 分鐘）
 - `stop()` - 停止定期檢查
@@ -226,14 +297,30 @@ const logger = createLogger('MCP', { useStderr: true });
 
 ## Claude Tools
 
-六個主要工具供 Claude 使用：
+七個主要工具供 Claude 使用：
 
 1. **list_entities** - 列出實體，可用 `domain` 或 `search` 過濾
 2. **get_state** - 取得實體詳細狀態，需要 `entity_id`
 3. **call_service** - 呼叫 HA 服務，需要 `domain` + `service`
 4. **manage_schedule** - 管理排程任務，支援 `create`、`list`、`enable`、`disable`、`delete` 操作
-5. **get_history** - 查詢實體歷史紀錄，需要 `entity_id`
+5. **get_history** - 查詢實體歷史紀錄，參數：
+   - `entity_id`（必要）- 實體 ID，多個以逗號分隔
+   - `start_time`（選用）- ISO 8601 格式，預設過去 24 小時
+   - `end_time`（選用）- ISO 8601 格式，預設目前時間
+   - `minimal_response`（選用）- 僅回傳 state 和 last_changed，預設 true
+   - `significant_changes_only`（選用）- 僅回傳顯著變化，預設 false
 6. **manage_event_subscription** - 管理事件訂閱，支援 `create`、`list`、`enable`、`disable`、`delete` 操作
+7. **manage_memory** - 管理長期記憶，支援 `save`、`list`、`search`、`update`、`delete` 操作
+
+### tool-schema-converter (utils/tool-schema-converter.ts)
+
+將 Anthropic SDK 的 `Tool` 格式轉換為 MCP 的 `McpTool` 格式，因兩者的 schema 結構不同。
+
+```typescript
+import { toMcpTools } from './utils/tool-schema-converter.js';
+
+const mcpTools = toMcpTools(haTools); // Tool[] → McpTool[]
+```
 
 ## 新增功能指引
 

@@ -47,7 +47,7 @@ export class ClaudeAgent {
   constructor(haClient: HAClient, config?: AgentConfig) {
     this.client = new Anthropic();
     this.haClient = haClient;
-    this.model = config?.model || process.env.CLAUDE_MODEL || 'claude-sonnet-4-20250514';
+    this.model = config?.model || process.env.CLAUDE_MODEL || 'sonnet';
     this.maxTokens = config?.maxTokens || 4096;
     this.systemPrompt = config?.systemPrompt || DEFAULT_SYSTEM_PROMPT;
   }
