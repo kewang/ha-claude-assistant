@@ -41,13 +41,9 @@ if [ ! -f "$SCHEDULE_DATA_PATH" ]; then
     echo "[]" > "$SCHEDULE_DATA_PATH"
 fi
 
-# 設定 claude 用戶的目錄和檔案權限
-chown -R claude:claude "$CLAUDE_CONFIG_DIR"
-chown -R claude:claude "$(dirname "$SCHEDULE_DATA_PATH")"
-chown claude:claude "$SCHEDULE_DATA_PATH"
-chown -R claude:claude /data/conversations
-chown -R claude:claude /data/event-subscriptions
-chown -R claude:claude /data/memories
+# 統一設定 /data 下所有檔案和目錄的擁有者為 claude
+# 一次性覆蓋，避免新增功能時遺漏個別目錄的權限設定
+chown -R claude:claude /data
 
 # 建立 claude-run wrapper（以 claude 用戶身份執行 claude CLI）
 cat > /usr/local/bin/claude-run << WRAPPER
