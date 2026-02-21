@@ -46,9 +46,14 @@ fi
 chown -R claude:claude /data
 
 # 建立 claude-run wrapper（以 claude 用戶身份執行 claude CLI）
+# 若已是 claude 用戶則直接執行，避免嵌套 su-exec 導致 setgroups 權限錯誤
 cat > /usr/local/bin/claude-run << WRAPPER
 #!/bin/bash
-exec su-exec claude env CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude "\$@"
+if [ "\$(id -un)" = "claude" ]; then
+    exec env CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude "\$@"
+else
+    exec su-exec claude env CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG_DIR" claude "\$@"
+fi
 WRAPPER
 chmod +x /usr/local/bin/claude-run
 

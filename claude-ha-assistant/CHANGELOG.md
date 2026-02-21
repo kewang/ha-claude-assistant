@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.11] - 2026-02-21
+
+### Fixed
+- 修正 `claude-run` wrapper 嵌套 `su-exec` 導致 `setgroups: Operation not permitted` 錯誤：當已是 claude 用戶時直接執行，不再嵌套 `su-exec`
+
 ## [1.9.10] - 2026-02-21
 
 ### Fixed
