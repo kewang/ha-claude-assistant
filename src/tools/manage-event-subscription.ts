@@ -5,7 +5,9 @@ export const manageEventSubscriptionTool: Tool = {
   name: 'manage_event_subscription',
   description: `管理事件訂閱。可以新增、列出、啟用、停用或刪除事件訂閱。
 
-事件訂閱會由 Event Listener 背景服務監聽 Home Assistant WebSocket API，當事件觸發時，透過 Claude 生成友善通知訊息發送到 Slack。
+事件訂閱會由 Event Listener 背景服務監聯 Home Assistant WebSocket API，當事件觸發時，透過 Claude 生成友善通知訊息發送到 Slack。
+
+重要：建立新訂閱前，必須先用 action=list 查詢現有訂閱。若已有相同 eventType 的訂閱，應先刪除舊的再建立新的，避免重複訂閱導致同一事件產生多則通知。
 
 常見事件類型：
 - "automation_triggered" — 自動化觸發時通知

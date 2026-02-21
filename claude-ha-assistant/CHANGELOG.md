@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.12] - 2026-02-21
+
+### Fixed
+- 改善 `manage_event_subscription` tool description：指示 Claude 建立新訂閱前必須先 `list` 現有訂閱，若有相同 eventType 應先刪除舊的再建新的，避免重複訂閱導致同一事件多則通知
+
 ## [1.9.11] - 2026-02-21
 
 ### Fixed
