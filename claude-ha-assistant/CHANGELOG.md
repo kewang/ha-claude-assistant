@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.4] - 2026-02-21
+
+### Fixed
+- 修正 Add-on `run.sh` 遺漏 `/data/memories` 目錄初始化和權限設定，導致記憶功能在 Add-on 環境因權限問題無法寫入
+- 修正 Add-on MCP 權限設定遺漏 `manage_memory` tool
+
 ## [1.9.3] - 2026-02-21
 
 ### Fixed
