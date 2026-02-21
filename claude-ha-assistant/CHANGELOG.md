@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.9.5] - 2026-02-21
+
+### Fixed
+- 修正 MCP Server 的 `manage_event_subscription` tool schema 與 `src/tools/` 不同步：`entity_filter` 在 MCP 端仍為 `string` 型別，導致透過 Slack Bot 建立事件訂閱時 `entityFilter` 永遠為 `null`
+- 修正 MCP Server 的 `get_history` tool schema 缺少 `minimal_response` 和 `significant_changes_only` 參數
+
+### Changed
+- 重構 MCP Server：移除約 260 行手動重複的 tool schema，改用 `toMcpTools(haTools)` 從 `src/tools/` 自動轉換，避免未來新增或修改 tool 時遺漏同步
+
 ## [1.9.4] - 2026-02-21
 
 ### Fixed
