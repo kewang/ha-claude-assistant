@@ -182,22 +182,21 @@ export class EventSubscriptionStore {
 
       (async () => {
         try {
-          for await (const event of watcher) {
-            if (event.eventType === 'change') {
-              if (this.reloadTimeout) {
-                clearTimeout(this.reloadTimeout);
-              }
-              this.reloadTimeout = setTimeout(async () => {
-                try {
-                  await this.load();
-                  for (const callback of this.watchers) {
-                    callback();
-                  }
-                } catch (error) {
-                  logger.error('Reload error:', error);
-                }
-              }, 500);
+          for await (const _event of watcher) {
+            // 處理所有事件類型（change 和 rename），避免因 Linux 核心差異遺漏
+            if (this.reloadTimeout) {
+              clearTimeout(this.reloadTimeout);
             }
+            this.reloadTimeout = setTimeout(async () => {
+              try {
+                await this.load();
+                for (const callback of this.watchers) {
+                  callback();
+                }
+              } catch (error) {
+                logger.error('Reload error:', error);
+              }
+            }, 500);
           }
         } catch (error) {
           if ((error as Error).name !== 'AbortError') {
@@ -205,6 +204,7 @@ export class EventSubscriptionStore {
           }
         }
       })();
+
     } catch (error) {
       logger.error('Failed to start watching:', error);
     }

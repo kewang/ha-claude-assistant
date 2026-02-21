@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.9.8] - 2026-02-21
+
+### Fixed
+- 修正 EventSubscriptionStore 和 ScheduleStore 的 file watcher 只處理 `change` 事件，遺漏 `rename` 事件導致 hot reload 在某些 Linux 環境下失效
+
+### Added
+- 新增 EventSubscriptionStore reload logging：載入時記錄訂閱數量和各訂閱的 `entityFilter` 狀態
+- 新增 Event Listener `handleEvent` 過濾決策 debug logging（需設定 `LOG_LEVEL=debug` 啟用）
+
 ## [1.9.7] - 2026-02-21
 
 ### Added

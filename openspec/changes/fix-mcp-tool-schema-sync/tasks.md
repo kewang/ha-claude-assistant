@@ -12,10 +12,12 @@
 
 - [x] 3.1 修改 `claude-ha-assistant/run.sh`，將逐一 `chown` 個別子目錄改為 `chown -R claude:claude /data`
 
-## 4. 新增 Debug Logging
+## 4. 修正 File Watcher 和新增 Debug Logging
 
 - [x] 4.1 在 `EventSubscriptionStore.load()` 成功後新增 log，記錄載入的訂閱數量和各訂閱的 entityFilter 狀態
 - [x] 4.2 在 `event-listener-daemon.ts` 的 `handleEvent` 新增 debug log，記錄事件的 entity_id、訂閱的 entityFilter、以及過濾決策結果
+- [x] 4.3 修正 `EventSubscriptionStore.startWatching()` 移除 `eventType === 'change'` 過濾，接受所有 fs.watch 事件類型
+- [x] 4.4 同步修正 `ScheduleStore.startWatching()` 的相同問題
 
 ## 5. 測試
 
