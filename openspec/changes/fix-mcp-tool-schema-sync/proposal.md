@@ -6,6 +6,8 @@ MCP Server 中 `manage_event_subscription` 的 tool schema 與 `src/tools/manage
 
 此外，Add-on 的 `run.sh` 對 `/data` 目錄的權限設定是逐一指定子目錄 `chown`，每次新增資料目錄都要手動加一行，遺漏時就會出現 `root:root` 擁有的檔案導致 `claude` 用戶無法寫入（如 `event-subscriptions.json`）。
 
+Event Listener daemon 的 `handleEvent` 也缺少過濾決策的 debug logging，無法診斷事件為何通過或被排除。`EventSubscriptionStore` 的 `load()` 在 hot reload 成功後也沒有記錄，無法確認 file watcher 是否正常運作。
+
 ## What Changes
 
 - 新增 `toMcpTool` / `toMcpTools` 轉換函式，將 Anthropic SDK `Tool`（`input_schema`）轉為 MCP 格式（`inputSchema`）
@@ -13,6 +15,7 @@ MCP Server 中 `manage_event_subscription` 的 tool schema 與 `src/tools/manage
 - 同時簡化 `CallToolRequestSchema` handler，改用 `executeTool()` 統一路由
 - 新增轉換器測試和迴歸測試
 - 修正 Add-on `run.sh` 權限設定，改用 `chown -R claude:claude /data` 統一設定所有資料目錄權限
+- 新增 EventSubscriptionStore reload logging 和 handleEvent 過濾決策 debug logging
 
 ## Capabilities
 
@@ -24,6 +27,8 @@ MCP Server 中 `manage_event_subscription` 的 tool schema 與 `src/tools/manage
 
 - `mcp-server`: ListTools handler 改為從 `haTools` 轉換，CallTool handler 改用 `executeTool()` 統一路由，消除重複定義
 - `addon-data-init`: `/data` 權限設定改為統一 `chown -R claude:claude /data`
+- `event-listener-daemon`: 新增 handleEvent 過濾決策 debug logging
+- `event-subscription-store`: 新增 reload logging
 
 ## Impact
 

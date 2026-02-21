@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.7] - 2026-02-21
+
+### Added
+- 新增 EventSubscriptionStore reload logging：載入時記錄訂閱數量和各訂閱的 `entityFilter` 狀態，方便診斷 hot reload 問題
+- 新增 Event Listener `handleEvent` 過濾決策 debug logging：記錄事件的 entity_id、匹配的訂閱名稱、filter pattern 和過濾結果（需設定 `LOG_LEVEL=debug` 啟用）
+
 ## [1.9.6] - 2026-02-21
 
 ### Fixed

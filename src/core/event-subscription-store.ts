@@ -72,6 +72,8 @@ export class EventSubscriptionStore {
       for (const sub of subscriptions) {
         this.subscriptions.set(sub.id, sub);
       }
+
+      logger.info(`Loaded ${subscriptions.length} subscription(s): ${subscriptions.map(s => `"${s.name}" (filter: ${s.entityFilter ? JSON.stringify(s.entityFilter) : 'none'})`).join(', ')}`);
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
         await this.save();

@@ -12,9 +12,14 @@
 
 - [x] 3.1 修改 `claude-ha-assistant/run.sh`，將逐一 `chown` 個別子目錄改為 `chown -R claude:claude /data`
 
-## 4. 測試
+## 4. 新增 Debug Logging
 
-- [x] 4.1 建立 `tests/tool-schema-converter.test.ts`，測試轉換函式基本功能
-- [x] 4.2 新增迴歸測試：確認 `entity_filter` 為 `array` 型別、`get_history` 包含 `minimal_response` 和 `significant_changes_only`
-- [x] 4.3 執行 `npm test` 確認所有測試通過
-- [x] 4.4 執行 `npm run build` 確認 TypeScript 編譯成功
+- [x] 4.1 在 `EventSubscriptionStore.load()` 成功後新增 log，記錄載入的訂閱數量和各訂閱的 entityFilter 狀態
+- [x] 4.2 在 `event-listener-daemon.ts` 的 `handleEvent` 新增 debug log，記錄事件的 entity_id、訂閱的 entityFilter、以及過濾決策結果
+
+## 5. 測試
+
+- [x] 5.1 建立 `tests/tool-schema-converter.test.ts`，測試轉換函式基本功能
+- [x] 5.2 新增迴歸測試：確認 `entity_filter` 為 `array` 型別、`get_history` 包含 `minimal_response` 和 `significant_changes_only`
+- [x] 5.3 執行 `npm test` 確認所有測試通過
+- [x] 5.4 執行 `npm run build` 確認 TypeScript 編譯成功

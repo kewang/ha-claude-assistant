@@ -346,22 +346,28 @@ function handleEvent(event: HAEvent): void {
     if (sub.eventType !== event.event_type) continue;
 
     // 比對 entity filter（支援包含和 ! 前綴排除）
-    if (sub.entityFilter && sub.entityFilter.length > 0) {
-      const entityId = (event.data.entity_id as string) ||
-        (event.data.new_state as Record<string, unknown>)?.entity_id as string || '';
+    const entityId = (event.data.entity_id as string) ||
+      (event.data.new_state as Record<string, unknown>)?.entity_id as string || '';
 
+    if (sub.entityFilter && sub.entityFilter.length > 0) {
       const includePatterns = sub.entityFilter.filter(p => !p.startsWith('!'));
       const excludePatterns = sub.entityFilter.filter(p => p.startsWith('!')).map(p => p.slice(1));
 
       // 排除優先：匹配任一排除 pattern 則跳過
       if (excludePatterns.length > 0 && excludePatterns.some(pattern => matchWildcard(pattern, entityId))) {
+        logger.debug(`Event ${entityId} excluded by filter for "${sub.name}" (exclude patterns: ${excludePatterns.join(', ')})`);
         continue;
       }
 
       // 包含：有包含 pattern 時，必須匹配任一才通過
       if (includePatterns.length > 0 && !includePatterns.some(pattern => matchWildcard(pattern, entityId))) {
+        logger.debug(`Event ${entityId} not included by filter for "${sub.name}" (include patterns: ${includePatterns.join(', ')})`);
         continue;
       }
+
+      logger.debug(`Event ${entityId} passed filter for "${sub.name}" (filter: ${JSON.stringify(sub.entityFilter)})`);
+    } else {
+      logger.debug(`Event ${entityId} matched "${sub.name}" (no filter)`);
     }
 
     enqueueEvent(event, sub);
