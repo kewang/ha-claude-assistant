@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.3] - 2026-02-21
+
+### Fixed
+- 修正 MCP Server 遺漏 `manage_memory` tool 註冊，導致 Claude CLI 無法呼叫記憶管理功能（Slack 說「記住 XXX」只會口頭回應但不會實際儲存）
+- 修正 Token 刷新 race condition：多個並發呼叫 `refreshToken()` 時，共用同一個 refresh promise 避免重複刷新
+
 ## [1.9.1] - 2026-02-21
 
 ### Added

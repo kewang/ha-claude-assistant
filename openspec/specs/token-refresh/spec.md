@@ -36,7 +36,7 @@ The system SHALL provide `ensureValidToken()` for pre-execution checks.
 - **THEN** the system returns `{ valid: false, needsRelogin: true }`
 
 ### Requirement: Token 刷新 API 呼叫
-The system SHALL use the OAuth token endpoint to refresh tokens.
+The system SHALL use the OAuth token endpoint to refresh tokens, with concurrency control to prevent duplicate refresh requests.
 
 #### Scenario: 刷新 Token 請求
 - **WHEN** `refreshToken()` is called
@@ -53,6 +53,14 @@ The system SHALL use the OAuth token endpoint to refresh tokens.
   - `expiresAt` as Unix millisecond timestamp (number)
   - `scopes` as string array
   - No nested objects (filters out `organization`, `account`)
+
+#### Scenario: 並發 refresh 請求合併
+- **WHEN** `refreshToken()` is called while another refresh is already in progress
+- **THEN** the system SHALL return the same Promise as the in-progress refresh, without sending a second API request
+
+#### Scenario: refresh Promise 清除
+- **WHEN** a refresh request completes (success or failure)
+- **THEN** the system SHALL clear the in-progress Promise so subsequent calls can initiate a new refresh
 
 #### Scenario: 刷新失敗 - invalid_grant
 - **WHEN** the token endpoint returns HTTP 400 with `{"error": "invalid_grant"}`

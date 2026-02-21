@@ -13,6 +13,7 @@ import { executeCallService, type CallServiceInput } from '../tools/call-service
 import { executeManageSchedule, type ManageScheduleInput } from '../tools/manage-schedule.js';
 import { executeGetHistory, type GetHistoryInput } from '../tools/get-history.js';
 import { executeManageEventSubscription, type ManageEventSubscriptionInput } from '../tools/manage-event-subscription.js';
+import { executeManageMemory, type ManageMemoryInput } from '../tools/manage-memory.js';
 import { createLogger } from '../utils/logger.js';
 import { VERSION } from '../version.js';
 
@@ -247,6 +248,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['action'],
         },
       },
+      {
+        name: 'manage_memory',
+        description: `管理長期記憶。可以儲存、列出、搜尋、更新或刪除記憶。
+
+記憶會跨對話持久保存，用於記住使用者偏好、設備暱稱、生活習慣等資訊。
+
+使用時機：
+- 使用者明確要求「記住」某件事
+- 從對話中發現值得長期記住的偏好或事實
+- 使用者要求「忘掉」某件事
+
+記憶內容建議簡潔明確，例如：
+- "使用者偏好冷氣溫度 24°C"
+- "書桌燈的 entity_id 是 light.office_desk"
+- "使用者每天早上 7 點起床"`,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            action: {
+              type: 'string',
+              enum: ['save', 'list', 'search', 'update', 'delete'],
+              description: '操作類型：save（儲存）、list（列出）、search（搜尋）、update（更新）、delete（刪除）',
+            },
+            content: {
+              type: 'string',
+              description: '記憶內容（save、update 時需要）',
+            },
+            id: {
+              type: 'string',
+              description: '記憶 ID（update、delete 時需要）',
+            },
+            search: {
+              type: 'string',
+              description: '搜尋關鍵字（search 時需要）',
+            },
+          },
+          required: ['action'],
+        },
+      },
     ],
   };
 });
@@ -276,6 +316,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         break;
       case 'manage_event_subscription':
         result = await executeManageEventSubscription(args as unknown as ManageEventSubscriptionInput);
+        break;
+      case 'manage_memory':
+        result = await executeManageMemory(args as unknown as ManageMemoryInput);
         break;
       default:
         throw new Error(`Unknown tool: ${name}`);

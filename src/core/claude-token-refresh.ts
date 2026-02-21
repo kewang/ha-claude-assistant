@@ -71,6 +71,7 @@ export class ClaudeTokenRefreshService {
   private lastRefreshAttempt: Date | null = null;
   private consecutiveFailures = 0;
   private readonly MAX_CONSECUTIVE_FAILURES = 3;
+  private refreshPromise: Promise<RefreshResult> | null = null;
 
   constructor() {
     const env = detectEnvironment();
@@ -191,6 +192,24 @@ export class ClaudeTokenRefreshService {
    * 執行 token 刷新
    */
   async refreshToken(): Promise<RefreshResult> {
+    // 如果已有 refresh 在進行中，直接等待並共用結果
+    if (this.refreshPromise) {
+      logger.info('Refresh already in progress, waiting for result...');
+      return this.refreshPromise;
+    }
+
+    this.refreshPromise = this.doRefreshToken();
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  /**
+   * 實際執行 token 刷新邏輯（內部方法）
+   */
+  private async doRefreshToken(): Promise<RefreshResult> {
     this.lastRefreshAttempt = new Date();
 
     // 讀取現有 credentials
