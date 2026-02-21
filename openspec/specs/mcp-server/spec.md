@@ -15,12 +15,14 @@ The system SHALL register all HA tools and respond to tool listing requests.
 
 #### Scenario: ListTools 請求
 - **WHEN** a `ListToolsRequest` is received
-- **THEN** the system returns the `haTools` array containing all 5 tool definitions:
+- **THEN** the system returns the `haTools` array containing all 7 tool definitions:
   - `list_entities`
   - `get_state`
   - `call_service`
   - `manage_schedule`
   - `get_history`
+  - `manage_event_subscription`
+  - `manage_memory`
 
 ### Requirement: 工具執行路由
 The system SHALL route tool calls to the appropriate executor.

@@ -57,11 +57,12 @@ The system SHALL follow a consistent pattern for processing messages.
 - **THEN** the system:
   1. Sends a "🔄 處理中..." thinking message
   2. Loads conversation history from `ConversationStore`
-  3. Builds augmented prompt via `buildPromptWithHistory()`
-  4. Calls `ensureValidToken()` to verify Claude CLI token
-  5. Spawns `claude --print --permission-mode bypassPermissions`
-  6. Updates the thinking message with the actual response
-  7. Saves the exchange to conversation store
+  3. Loads all memories from `MemoryStore`
+  4. Builds augmented prompt: first applies `buildPromptWithMemory()` to inject long-term memory, then applies `buildPromptWithHistory()` to inject conversation history
+  5. Calls `ensureValidToken()` to verify Claude CLI token
+  6. Spawns `claude --print --permission-mode bypassPermissions`
+  7. Updates the thinking message with the actual response
+  8. Saves the exchange to conversation store
 
 #### Scenario: Claude 執行逾時
 - **WHEN** the Claude CLI process exceeds the timeout (default 3 minutes, configurable via `CLAUDE_TIMEOUT_MS`)

@@ -28,11 +28,11 @@ The system SHALL process incoming HA events through Claude CLI and send notifica
   4. Sends the Claude-generated message via `NotificationManager`
 
 #### Scenario: Entity 過濾
-- **WHEN** a subscription has `entityFilter` set (e.g., `"binary_sensor.front_*"`)
-- **THEN** the system only processes events whose `entity_id` matches the filter pattern (supports `*` wildcard)
+- **WHEN** a subscription has `entityFilter` set to a non-empty array (e.g., `["binary_sensor.front_*", "automation.morning_*"]`)
+- **THEN** the system only processes events whose `entity_id` matches ANY of the filter patterns (each supports `*` wildcard)
 
 #### Scenario: 無 entity 過濾
-- **WHEN** a subscription has `entityFilter` set to `null`
+- **WHEN** a subscription has `entityFilter` set to `null` or empty array `[]`
 - **THEN** the system processes all events of the subscribed event type
 
 #### Scenario: Token 過期需重新登入

@@ -27,3 +27,7 @@ The system SHALL send execution results via NotificationManager instead of direc
 #### Scenario: Token 刷新服務通知回呼
 - **WHEN** the token refresh service needs to send a notification
 - **THEN** the system uses `NotificationManager` for the callback instead of direct Slack API call
+
+#### Scenario: 排程執行時注入記憶
+- **WHEN** a scheduled task is about to execute Claude CLI
+- **THEN** the system loads all memories from `MemoryStore` and applies `buildPromptWithMemory()` to the prompt before execution
