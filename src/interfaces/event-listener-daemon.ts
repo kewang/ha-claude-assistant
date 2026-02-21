@@ -345,13 +345,23 @@ function handleEvent(event: HAEvent): void {
     // 比對事件類型
     if (sub.eventType !== event.event_type) continue;
 
-    // 比對 entity filter（array，任一 pattern 匹配即通過）
+    // 比對 entity filter（支援包含和 ! 前綴排除）
     if (sub.entityFilter && sub.entityFilter.length > 0) {
       const entityId = (event.data.entity_id as string) ||
         (event.data.new_state as Record<string, unknown>)?.entity_id as string || '';
 
-      const matched = sub.entityFilter.some(pattern => matchWildcard(pattern, entityId));
-      if (!matched) continue;
+      const includePatterns = sub.entityFilter.filter(p => !p.startsWith('!'));
+      const excludePatterns = sub.entityFilter.filter(p => p.startsWith('!')).map(p => p.slice(1));
+
+      // 排除優先：匹配任一排除 pattern 則跳過
+      if (excludePatterns.length > 0 && excludePatterns.some(pattern => matchWildcard(pattern, entityId))) {
+        continue;
+      }
+
+      // 包含：有包含 pattern 時，必須匹配任一才通過
+      if (includePatterns.length > 0 && !includePatterns.some(pattern => matchWildcard(pattern, entityId))) {
+        continue;
+      }
     }
 
     enqueueEvent(event, sub);

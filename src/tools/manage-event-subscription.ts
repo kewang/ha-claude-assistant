@@ -33,7 +33,7 @@ export const manageEventSubscriptionTool: Tool = {
       entity_filter: {
         type: 'array',
         items: { type: 'string' },
-        description: '可選的 entity_id 過濾條件陣列，每個元素為一個 pattern，支援 * 萬用字元。如 ["binary_sensor.front_*"] 或 ["automation.aaa", "automation.bbb"]',
+        description: '可選的 entity_id 過濾條件陣列，每個元素為一個 pattern，支援 * 萬用字元。以 ! 開頭表示排除。如 ["binary_sensor.front_*"]（包含）、["!automation.ac_*"]（排除）。automation_triggered 事件的 entity_id 格式為 automation.xxx。',
       },
       description: {
         type: 'string',
