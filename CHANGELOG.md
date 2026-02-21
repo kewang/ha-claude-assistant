@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.6] - 2026-02-21
+
+### Fixed
+- 修正 Add-on `/data` 目錄權限問題：改用 `chown -R claude:claude /data` 統一設定，避免新增資料目錄時遺漏個別權限設定（如 `event-subscriptions.json` 由 root 建立導致 claude 用戶無法寫入）
+
 ## [1.9.5] - 2026-02-21
 
 ### Fixed
