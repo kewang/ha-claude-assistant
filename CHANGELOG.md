@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.9.1] - 2026-02-21
+
+### Added
+- `entityFilter` 支援 `!` 前綴排除語法，如 `["!automation.ac_*"]` 排除特定實體
+- Tool description 補充 `automation_triggered` 事件的 entity_id 格式說明
+
 ## [1.9.0] - 2026-02-21
 
 ### Added
