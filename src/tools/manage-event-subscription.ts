@@ -31,8 +31,9 @@ export const manageEventSubscriptionTool: Tool = {
         description: 'HA 事件類型（create 時必填），如 "automation_triggered"、"state_changed"',
       },
       entity_filter: {
-        type: 'string',
-        description: '可選的 entity_id 過濾條件，支援 * 萬用字元，如 "binary_sensor.front_*"',
+        type: 'array',
+        items: { type: 'string' },
+        description: '可選的 entity_id 過濾條件陣列，每個元素為一個 pattern，支援 * 萬用字元。如 ["binary_sensor.front_*"] 或 ["automation.aaa", "automation.bbb"]',
       },
       description: {
         type: 'string',
@@ -51,7 +52,7 @@ export interface ManageEventSubscriptionInput {
   action: 'create' | 'list' | 'enable' | 'disable' | 'delete';
   name?: string;
   event_type?: string;
-  entity_filter?: string;
+  entity_filter?: string[];
   description?: string;
   id?: string;
 }

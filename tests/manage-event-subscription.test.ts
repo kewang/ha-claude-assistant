@@ -25,7 +25,7 @@ describe('manageEventSubscriptionTool', () => {
     expect(haTools.map(t => t.name)).toContain('manage_event_subscription');
   });
 
-  it('haTools should contain 6 tools', () => {
-    expect(haTools).toHaveLength(6);
+  it('haTools should contain 7 tools', () => {
+    expect(haTools).toHaveLength(7);
   });
 });

@@ -12,7 +12,7 @@ export interface StoredEventSubscription {
   id: string;
   name: string;
   eventType: string;
-  entityFilter: string | null;
+  entityFilter: string[] | null;
   description: string;
   enabled: boolean;
   createdAt: string;

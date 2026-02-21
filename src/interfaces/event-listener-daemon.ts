@@ -345,12 +345,13 @@ function handleEvent(event: HAEvent): void {
     // 比對事件類型
     if (sub.eventType !== event.event_type) continue;
 
-    // 比對 entity filter
-    if (sub.entityFilter) {
+    // 比對 entity filter（array，任一 pattern 匹配即通過）
+    if (sub.entityFilter && sub.entityFilter.length > 0) {
       const entityId = (event.data.entity_id as string) ||
         (event.data.new_state as Record<string, unknown>)?.entity_id as string || '';
 
-      if (!matchWildcard(sub.entityFilter, entityId)) continue;
+      const matched = sub.entityFilter.some(pattern => matchWildcard(pattern, entityId));
+      if (!matched) continue;
     }
 
     enqueueEvent(event, sub);
@@ -424,7 +425,7 @@ async function main(): Promise<void> {
     await store.create({
       name: '自動化觸發通知',
       eventType: 'automation_triggered',
-      entityFilter: '',
+      entityFilter: null,
       description: '當 Home Assistant 自動化被觸發時，生成友善的通知訊息',
       enabled: true,
     });
