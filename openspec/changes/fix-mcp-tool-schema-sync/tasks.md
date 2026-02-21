@@ -19,9 +19,13 @@
 - [x] 4.3 修正 `EventSubscriptionStore.startWatching()` 移除 `eventType === 'change'` 過濾，接受所有 fs.watch 事件類型
 - [x] 4.4 同步修正 `ScheduleStore.startWatching()` 的相同問題
 
-## 5. 測試
+## 5. 改善 entity_filter 使用體驗
 
-- [x] 5.1 建立 `tests/tool-schema-converter.test.ts`，測試轉換函式基本功能
-- [x] 5.2 新增迴歸測試：確認 `entity_filter` 為 `array` 型別、`get_history` 包含 `minimal_response` 和 `significant_changes_only`
-- [x] 5.3 執行 `npm test` 確認所有測試通過
-- [x] 5.4 執行 `npm run build` 確認 TypeScript 編譯成功
+- [x] 5.1 更新 `manage_event_subscription` tool 的 `entity_filter` description，指示 Claude 必須先呼叫 `list_entities` 查詢實際 entity_id，不要猜測或自行拼湊
+
+## 6. 測試
+
+- [x] 6.1 建立 `tests/tool-schema-converter.test.ts`，測試轉換函式基本功能
+- [x] 6.2 新增迴歸測試：確認 `entity_filter` 為 `array` 型別、`get_history` 包含 `minimal_response` 和 `significant_changes_only`
+- [x] 6.3 執行 `npm test` 確認所有測試通過
+- [x] 6.4 執行 `npm run build` 確認 TypeScript 編譯成功

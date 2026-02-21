@@ -33,7 +33,7 @@ export const manageEventSubscriptionTool: Tool = {
       entity_filter: {
         type: 'array',
         items: { type: 'string' },
-        description: '可選的 entity_id 過濾條件陣列，支援 * 萬用字元，以 ! 開頭表示排除。範例：["binary_sensor.front_door"]（精確匹配）、["automation.morning_*"]（萬用字元包含）、["!automation.ac_distribution", "!automation.ac_schedule"]（排除特定實體）、["!automation.ac_*"]（萬用字元排除）。automation_triggered 事件的 entity_id 格式為 automation.xxx。',
+        description: '可選的 entity_id 過濾條件陣列，支援 * 萬用字元，以 ! 開頭表示排除。重要：設定前必須先呼叫 list_entities 查詢實際的 entity_id，不要猜測或自行拼湊 entity_id（尤其是中文名稱的自動化，HA 會將中文轉為拼音，如「冷氣室外機每日kWh分攤到主臥/客廳」→ automation.leng_qi_shi_wai_ji_mei_ri_kwhfen_tan_dao_zhu_wo_ke_ting）。範例：["binary_sensor.front_door"]（精確匹配）、["automation.morning_*"]（萬用字元包含）、["!automation.leng_qi_*"]（排除特定實體）。automation_triggered 事件的 entity_id 格式為 automation.xxx。',
       },
       description: {
         type: 'string',

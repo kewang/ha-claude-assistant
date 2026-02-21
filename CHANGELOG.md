@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.9] - 2026-02-21
+
+### Fixed
+- 改善 `entity_filter` tool description：指示 Claude 必須先呼叫 `list_entities` 查詢實際 entity_id，避免猜測中文自動化名稱導致過濾無效
+
 ## [1.9.8] - 2026-02-21
 
 ### Fixed
