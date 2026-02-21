@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.13] - 2026-02-21
+
+### Fixed
+- 修正 tool description 錯字
+
 ## [1.9.12] - 2026-02-21
 
 ### Fixed
