@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.9.10] - 2026-02-21
+
+### Fixed
+- 修正 Add-on 所有 Node 服務改用 `su-exec claude` 執行，避免 daemon 新建檔案（如預設的 `event-subscriptions.json`）變成 root 擁有導致後續權限問題
+
 ## [1.9.9] - 2026-02-21
 
 ### Fixed

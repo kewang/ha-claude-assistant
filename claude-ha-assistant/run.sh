@@ -211,9 +211,10 @@ INGRESS_PORT=$(curl -s -H "Authorization: Bearer $SUPERVISOR_TOKEN" http://super
 echo "Ingress port: $INGRESS_PORT"
 export WEB_UI_PORT="$INGRESS_PORT"
 
+# 以 claude 用戶啟動所有 Node 服務，避免新建檔案變成 root 擁有
 # 啟動 Web UI（背景執行，ingress）
 echo "Starting Web UI server on port $INGRESS_PORT..."
-node /app/dist/interfaces/web-ui.js &
+su-exec claude node /app/dist/interfaces/web-ui.js &
 WEBUI_PID=$!
 
 # 等待 Web UI 啟動
@@ -226,16 +227,16 @@ fi
 
 # 啟動 Scheduler（背景執行）
 echo "Starting Scheduler daemon..."
-node /app/dist/interfaces/scheduler-daemon.js &
+su-exec claude node /app/dist/interfaces/scheduler-daemon.js &
 SCHEDULER_PID=$!
 echo "Scheduler started (PID: $SCHEDULER_PID)"
 
 # 啟動 Event Listener（背景執行）
 echo "Starting Event Listener daemon..."
-node /app/dist/interfaces/event-listener-daemon.js &
+su-exec claude node /app/dist/interfaces/event-listener-daemon.js &
 EVENT_LISTENER_PID=$!
 echo "Event Listener started (PID: $EVENT_LISTENER_PID)"
 
 # 啟動 Slack Bot（前景執行）
 echo "Starting Slack Bot..."
-exec node /app/dist/interfaces/slack-bot.js
+exec su-exec claude node /app/dist/interfaces/slack-bot.js

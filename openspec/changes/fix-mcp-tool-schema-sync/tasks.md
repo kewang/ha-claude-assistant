@@ -11,6 +11,7 @@
 ## 3. 修正 Add-on 權限
 
 - [x] 3.1 修改 `claude-ha-assistant/run.sh`，將逐一 `chown` 個別子目錄改為 `chown -R claude:claude /data`
+- [x] 3.2 修改 `claude-ha-assistant/run.sh`，所有 Node 服務改用 `su-exec claude` 執行，避免 daemon 新建檔案變成 root 擁有
 
 ## 4. 修正 File Watcher 和新增 Debug Logging
 
