@@ -171,7 +171,17 @@ export class ClaudeTokenRefreshService {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`OAuth refresh failed: ${response.status} ${response.statusText} - ${errorText}`);
+      let oauthError: string | undefined;
+      try {
+        const errorJson = JSON.parse(errorText);
+        oauthError = errorJson.error;
+      } catch {
+        // response body 不是 JSON，忽略
+      }
+      const err = new Error(`OAuth refresh failed: ${response.status} ${response.statusText} - ${errorText}`);
+      (err as unknown as { statusCode: number }).statusCode = response.status;
+      (err as unknown as { oauthError: string | undefined }).oauthError = oauthError;
+      throw err;
     }
 
     return await response.json() as TokenRefreshResponse;
@@ -256,11 +266,10 @@ export class ClaudeTokenRefreshService {
       this.consecutiveFailures++;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // 檢查是否是 refresh token 過期
-      const isRefreshTokenExpired =
-        errorMessage.includes('invalid_grant') ||
-        errorMessage.includes('refresh_token') ||
-        errorMessage.includes('expired');
+      // 精確判斷 refresh token 是否真的失效：只有 HTTP 400 + invalid_grant 才判定
+      const statusCode = (error as unknown as { statusCode?: number }).statusCode;
+      const oauthError = (error as unknown as { oauthError?: string }).oauthError;
+      const isRefreshTokenExpired = statusCode === 400 && oauthError === 'invalid_grant';
 
       if (isRefreshTokenExpired) {
         await this.notify(

@@ -55,8 +55,16 @@ The system SHALL use the OAuth token endpoint to refresh tokens.
   - No nested objects (filters out `organization`, `account`)
 
 #### Scenario: 刷新失敗 - invalid_grant
-- **WHEN** the token endpoint returns `invalid_grant` error
+- **WHEN** the token endpoint returns HTTP 400 with `{"error": "invalid_grant"}`
 - **THEN** the system marks the state as needing re-login and triggers notification
+
+#### Scenario: 刷新失敗 - API 錯誤回應
+- **WHEN** the token endpoint returns a non-400 HTTP error (e.g., 5xx) or the JSON `error` field is not `invalid_grant`
+- **THEN** the system SHALL NOT mark the state as needing re-login, and SHALL increment the consecutive failure counter
+
+#### Scenario: 刷新失敗 - 網路錯誤
+- **WHEN** the refresh API call fails due to network error (timeout, DNS failure, connection refused)
+- **THEN** the system SHALL NOT mark the state as needing re-login, and SHALL increment the consecutive failure counter
 
 ### Requirement: 失敗通知機制
 The system SHALL notify users when manual intervention is needed.
