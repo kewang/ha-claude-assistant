@@ -31,6 +31,10 @@ The system SHALL route tool calls to the appropriate executor.
 - **WHEN** a `CallToolRequest` is received with a valid tool name
 - **THEN** the system routes to the corresponding executor via `executeTool()` and returns the result as `{ content: [{ type: "text", text: result }] }`
 
+#### Scenario: 呼叫 manage_memory 工具
+- **WHEN** a `CallToolRequest` is received with tool name `manage_memory`
+- **THEN** the system calls `executeManageMemory()` with the provided arguments and returns the result
+
 #### Scenario: 工具執行失敗
 - **WHEN** a tool executor throws an error
 - **THEN** the system returns `{ content: [{ type: "text", text: JSON.stringify({ success: false, error }) }], isError: true }`
