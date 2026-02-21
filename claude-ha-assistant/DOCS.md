@@ -7,6 +7,7 @@ Claude AI 驅動的智慧家庭助理，整合 Home Assistant。
 - **Web UI 登入**：透過 HA 側邊欄完成 Claude 登入，無需進入容器
 - **Slack Bot**：透過 Slack 與 Claude 對話，控制智慧家庭設備
 - **對話記憶**：支援多輪對話上下文，Slack thread、CLI session、排程任務都能記住前文
+- **長期記憶**：透過自然語言管理長期記憶（如「記住我怕冷，冷氣不要低於 26 度」），Slack Bot 和排程執行時自動注入
 - **排程服務**：設定定時任務，例如每天早上報告天氣和設備狀態
 - **即時事件通知**：透過 WebSocket 監聽 HA 事件（automation 觸發、狀態變更等），由 Claude 生成友善通知
 - **自然語言控制**：用自然語言控制燈光、開關、空調等設備
@@ -272,6 +273,7 @@ su-exec claude env CLAUDE_CONFIG_DIR=/data/claude claude login
 - **Claude 登入狀態**：儲存在 `/data/claude/`
 - **排程設定**：儲存在 `/data/schedules/schedules.json`
 - **對話記憶**：儲存在 `/data/conversations/conversations.json`
+- **長期記憶**：儲存在 `/data/memories/memories.json`
 
 ## 技術架構
 
@@ -304,6 +306,7 @@ ha-claude-assistant/
 │   │   ├── ha-client.ts        # Home Assistant API 封裝
 │   │   ├── schedule-store.ts   # 排程持久化儲存
 │   │   ├── conversation-store.ts # 對話記憶持久化
+│   │   ├── memory-store.ts     # 長期記憶持久化
 │   │   ├── env-detect.ts       # 環境偵測（Add-on / 一般）
 │   │   ├── claude-token-refresh.ts # OAuth Token 自動刷新
 │   │   └── claude-oauth-config.ts  # OAuth 設定動態提取
@@ -312,12 +315,16 @@ ha-claude-assistant/
 │   │   ├── cli.ts              # CLI 介面
 │   │   ├── slack-bot.ts        # Slack Bot
 │   │   ├── web-ui.ts           # Web UI HTTP Server
-│   │   └── scheduler-daemon.ts # 排程服務
+│   │   ├── scheduler-daemon.ts # 排程服務
+│   │   └── event-listener-daemon.ts # 事件監聽服務
 │   ├── tools/                  # Claude tools 定義
 │   │   ├── list-entities.ts
 │   │   ├── get-states.ts
 │   │   ├── call-service.ts
+│   │   ├── get-history.ts
 │   │   ├── manage-schedule.ts
+│   │   ├── manage-event-subscription.ts
+│   │   ├── manage-memory.ts
 │   │   └── index.ts
 │   └── index.ts
 ├── repository.yaml             # HA Add-on 倉庫設定
@@ -342,8 +349,17 @@ ha-claude-assistant/
 ### call_service
 呼叫 HA 服務控制設備（開關燈、調溫度等）。
 
+### get_history
+查詢實體的歷史紀錄，可指定時間範圍。
+
 ### manage_schedule
 管理排程任務，支援建立、列出、啟用、停用、刪除排程。
+
+### manage_event_subscription
+管理事件訂閱，支援建立、列出、啟用、停用、刪除。可設定 entity filter 過濾特定實體。
+
+### manage_memory
+管理長期記憶，支援新增、列出、刪除。記憶會在 Slack Bot 和排程執行時自動注入 Claude 的 prompt。
 
 ## 開發
 

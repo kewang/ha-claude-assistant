@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.9.0] - 2026-02-21
+
+### Added
+- **動態記憶功能**：新增 `manage_memory` MCP tool，可透過自然語言新增、列出、刪除長期記憶
+  - Slack Bot 和 Scheduler 執行 Claude CLI 前會自動注入記憶內容
+  - 記憶持久化儲存於 `data/memories.json`（Add-on: `/data/memories/memories.json`）
+
+### Fixed
+- 修正 Token 刷新誤報：僅在 OAuth API 回傳 HTTP 400 + `invalid_grant` 時才判定 refresh token 失效，避免暫時性錯誤觸發「需要重新登入」通知
+- 修正事件訂閱 `entityFilter` 無法正確過濾多個實體：將格式從字串改為陣列，支援多個 pattern 各自獨立比對
+
 ## [1.8.0] - 2026-02-18
 
 ### Added
