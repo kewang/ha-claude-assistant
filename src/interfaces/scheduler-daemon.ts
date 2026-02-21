@@ -16,6 +16,7 @@ import type { ScheduledTask } from 'node-cron';
 import { spawn } from 'child_process';
 import { ScheduleStore, type StoredSchedule } from '../core/schedule-store.js';
 import { ConversationStore, buildPromptWithHistory } from '../core/conversation-store.js';
+import { MemoryStore, buildPromptWithMemory } from '../core/memory-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 import { getNotificationManager } from '../core/notification/index.js';
@@ -35,6 +36,7 @@ const notificationManager = getNotificationManager();
 // 排程管理
 const store = new ScheduleStore();
 const conversationStore = new ConversationStore();
+const memoryStore = new MemoryStore();
 const activeTasks: Map<string, ScheduledTask> = new Map();
 const timezone = process.env.TZ || 'Asia/Taipei';
 
@@ -206,10 +208,12 @@ async function executeSchedule(schedule: StoredSchedule): Promise<void> {
     return;
   }
 
-  // 2. 建立帶歷史的 prompt
+  // 2. 建立帶記憶和歷史的 prompt
   const conversationKey = `schedule:${schedule.id}`;
   const history = await conversationStore.getHistory(conversationKey);
-  const augmentedPrompt = buildPromptWithHistory(history, schedule.prompt);
+  const memories = memoryStore.getAll();
+  const withMemory = buildPromptWithMemory(memories, schedule.prompt);
+  const augmentedPrompt = buildPromptWithHistory(history, withMemory);
 
   // 3. 第一次執行
   let result = await executeClaudePrompt(augmentedPrompt);
@@ -352,6 +356,7 @@ async function main(): Promise<void> {
   await store.init();
   await conversationStore.init();
   await conversationStore.cleanup();
+  await memoryStore.init();
 
   // 載入並啟動所有排程
   await reloadSchedules();

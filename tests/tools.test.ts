@@ -4,7 +4,7 @@ import { haTools, listEntitiesTool, getStateTool, callServiceTool, manageSchedul
 describe('Tools', () => {
   describe('haTools array', () => {
     it('should contain all tools', () => {
-      expect(haTools).toHaveLength(6);
+      expect(haTools).toHaveLength(7);
       expect(haTools.map(t => t.name)).toEqual([
         'list_entities',
         'get_state',
@@ -12,6 +12,7 @@ describe('Tools', () => {
         'manage_schedule',
         'get_history',
         'manage_event_subscription',
+        'manage_memory',
       ]);
     });
   });

@@ -12,6 +12,7 @@ import { config } from 'dotenv';
 import { spawn } from 'child_process';
 import { HAClient } from '../core/ha-client.js';
 import { ConversationStore, buildPromptWithHistory } from '../core/conversation-store.js';
+import { MemoryStore, buildPromptWithMemory } from '../core/memory-store.js';
 import { detectEnvironment } from '../core/env-detect.js';
 import { getTokenRefreshService } from '../core/claude-token-refresh.js';
 import { createLogger } from '../utils/logger.js';
@@ -122,6 +123,7 @@ class SlackBot {
   private app: bolt.App;
   private haClient: HAClient;
   private conversationStore: ConversationStore;
+  private memoryStore: MemoryStore;
   private defaultChannelId?: string;
   private botUserId?: string;
   private reconnectAttempts = 0;
@@ -137,6 +139,7 @@ class SlackBot {
 
     this.haClient = new HAClient();
     this.conversationStore = new ConversationStore();
+    this.memoryStore = new MemoryStore();
 
     this.app = new App({
       token: botToken,
@@ -272,7 +275,9 @@ class SlackBot {
       try {
         const conversationKey = `slack:${threadTs}`;
         const history = await this.conversationStore.getHistory(conversationKey);
-        const augmentedPrompt = buildPromptWithHistory(history, text);
+        const memories = this.memoryStore.getAll();
+        const withMemory = buildPromptWithMemory(memories, text);
+        const augmentedPrompt = buildPromptWithHistory(history, withMemory);
         const response = await executeClaudePrompt(augmentedPrompt);
 
         await this.conversationStore.addExchange(conversationKey, text, response);
@@ -343,7 +348,9 @@ class SlackBot {
       try {
         const conversationKey = `slack:${threadTs}`;
         const history = await this.conversationStore.getHistory(conversationKey);
-        const augmentedPrompt = buildPromptWithHistory(history, text);
+        const memories = this.memoryStore.getAll();
+        const withMemory = buildPromptWithMemory(memories, text);
+        const augmentedPrompt = buildPromptWithHistory(history, withMemory);
         const response = await executeClaudePrompt(augmentedPrompt);
 
         await this.conversationStore.addExchange(conversationKey, text, response);
@@ -463,9 +470,10 @@ class SlackBot {
   }
 
   async start(): Promise<void> {
-    // 初始化對話記憶
+    // 初始化對話記憶與長期記憶
     await this.conversationStore.init();
     await this.conversationStore.cleanup();
+    await this.memoryStore.init();
 
     // 取得 bot user ID（用於判斷 @mention 避免重複處理）
     try {

@@ -7,6 +7,7 @@ import { callServiceTool, executeCallService, type CallServiceInput } from './ca
 import { manageScheduleTool, executeManageSchedule, type ManageScheduleInput } from './manage-schedule.js';
 import { getHistoryTool, executeGetHistory, type GetHistoryInput } from './get-history.js';
 import { manageEventSubscriptionTool, executeManageEventSubscription, type ManageEventSubscriptionInput } from './manage-event-subscription.js';
+import { manageMemoryTool, executeManageMemory, type ManageMemoryInput } from './manage-memory.js';
 
 export const haTools: Tool[] = [
   listEntitiesTool,
@@ -15,9 +16,10 @@ export const haTools: Tool[] = [
   manageScheduleTool,
   getHistoryTool,
   manageEventSubscriptionTool,
+  manageMemoryTool,
 ];
 
-export type ToolInput = ListEntitiesInput | GetStateInput | CallServiceInput | ManageScheduleInput | GetHistoryInput | ManageEventSubscriptionInput;
+export type ToolInput = ListEntitiesInput | GetStateInput | CallServiceInput | ManageScheduleInput | GetHistoryInput | ManageEventSubscriptionInput | ManageMemoryInput;
 
 export async function executeTool(
   client: HAClient,
@@ -37,6 +39,8 @@ export async function executeTool(
       return executeGetHistory(client, input as GetHistoryInput);
     case 'manage_event_subscription':
       return executeManageEventSubscription(input as ManageEventSubscriptionInput);
+    case 'manage_memory':
+      return executeManageMemory(input as ManageMemoryInput);
     default:
       return JSON.stringify({
         success: false,
@@ -58,6 +62,8 @@ export {
   executeGetHistory,
   manageEventSubscriptionTool,
   executeManageEventSubscription,
+  manageMemoryTool,
+  executeManageMemory,
 };
 
 export type {
@@ -67,4 +73,5 @@ export type {
   ManageScheduleInput,
   GetHistoryInput,
   ManageEventSubscriptionInput,
+  ManageMemoryInput,
 };
