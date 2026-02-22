@@ -45,7 +45,7 @@ const CLAUDE_TIMEOUT_MS = parseInt(process.env.CLAUDE_TIMEOUT_MS || '', 10) || 3
  */
 async function executeClaudePrompt(prompt: string): Promise<string> {
   // 執行前確保 token 有效
-  const tokenService = getTokenRefreshService();
+  const tokenService = getTokenRefreshService('SlackBot');
   const tokenResult = await tokenService.ensureValidToken();
   if (!tokenResult.success && tokenResult.needsRelogin) {
     throw new Error('Claude token 已過期，需要重新登入。請執行：claude login');

@@ -20,8 +20,6 @@ import { detectEnvironment } from './env-detect.js';
 import { createLogger } from '../utils/logger.js';
 import { getOAuthConfig, type OAuthConfig } from './claude-oauth-config.js';
 
-const logger = createLogger('TokenRefresh');
-
 // 刷新策略設定
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 5 分鐘
 const REFRESH_BEFORE_EXPIRY_MS = 30 * 60 * 1000; // 過期前 30 分鐘刷新
@@ -72,8 +70,11 @@ export class ClaudeTokenRefreshService {
   private consecutiveFailures = 0;
   private readonly MAX_CONSECUTIVE_FAILURES = 3;
   private refreshPromise: Promise<RefreshResult> | null = null;
+  private logger;
 
-  constructor() {
+  constructor(processLabel?: string) {
+    const moduleName = processLabel ? `TokenRefresh:${processLabel}` : 'TokenRefresh';
+    this.logger = createLogger(moduleName);
     const env = detectEnvironment();
     const configDir = env.claudeConfigDir || `${process.env.HOME}/.claude`;
     this.credentialsPath = path.join(configDir, '.credentials.json');
@@ -90,12 +91,12 @@ export class ClaudeTokenRefreshService {
    * 發送通知
    */
   private async notify(message: string): Promise<void> {
-    logger.info(message);
+    this.logger.info(message);
     if (this.notificationCallback) {
       try {
         await this.notificationCallback(message);
       } catch (error) {
-        logger.error('Failed to send notification:', error);
+        this.logger.error('Failed to send notification:', error);
       }
     }
   }
@@ -105,7 +106,7 @@ export class ClaudeTokenRefreshService {
    */
   private async readCredentials(): Promise<ClaudeCredentials | null> {
     if (!existsSync(this.credentialsPath)) {
-      logger.info('Credentials file not found:', this.credentialsPath);
+      this.logger.info('Credentials file not found:', this.credentialsPath);
       return null;
     }
 
@@ -113,7 +114,7 @@ export class ClaudeTokenRefreshService {
       const content = await readFile(this.credentialsPath, 'utf-8');
       return JSON.parse(content) as ClaudeCredentials;
     } catch (error) {
-      logger.error('Failed to read credentials:', error);
+      this.logger.error('Failed to read credentials:', error);
       return null;
     }
   }
@@ -124,9 +125,9 @@ export class ClaudeTokenRefreshService {
   private async writeCredentials(credentials: ClaudeCredentials): Promise<void> {
     try {
       await writeFile(this.credentialsPath, JSON.stringify(credentials, null, 2), 'utf-8');
-      logger.info('Credentials updated successfully');
+      this.logger.info('Credentials updated successfully');
     } catch (error) {
-      logger.error('Failed to write credentials:', error);
+      this.logger.error('Failed to write credentials:', error);
       throw error;
     }
   }
@@ -151,9 +152,9 @@ export class ClaudeTokenRefreshService {
   private async callRefreshApi(refreshToken: string): Promise<TokenRefreshResponse> {
     const oauthConfig = getOAuthConfig();
 
-    logger.debug(`Using OAuth config (source: ${oauthConfig.source}):`);
-    logger.debug(`  TOKEN_URL: ${oauthConfig.tokenUrl}`);
-    logger.debug(`  CLIENT_ID: ${oauthConfig.clientId}`);
+    this.logger.debug(`Using OAuth config (source: ${oauthConfig.source}):`);
+    this.logger.debug(`  TOKEN_URL: ${oauthConfig.tokenUrl}`);
+    this.logger.debug(`  CLIENT_ID: ${oauthConfig.clientId}`);
 
     const tokenBody = {
       grant_type: 'refresh_token',
@@ -194,7 +195,7 @@ export class ClaudeTokenRefreshService {
   async refreshToken(): Promise<RefreshResult> {
     // 如果已有 refresh 在進行中，直接等待並共用結果
     if (this.refreshPromise) {
-      logger.info('Refresh already in progress, waiting for result...');
+      this.logger.info('Refresh already in progress, waiting for result...');
       return this.refreshPromise;
     }
 
@@ -222,19 +223,19 @@ export class ClaudeTokenRefreshService {
       };
     }
 
-    const { refreshToken, expiresAt } = credentials.claudeAiOauth;
+    const { refreshToken, expiresAt: originalExpiresAt } = credentials.claudeAiOauth;
 
     // 檢查是否需要刷新
-    if (!this.isTokenExpiringSoon(expiresAt)) {
-      const remainingMinutes = Math.round((expiresAt - Date.now()) / 60000);
+    if (!this.isTokenExpiringSoon(originalExpiresAt)) {
+      const remainingMinutes = Math.round((originalExpiresAt - Date.now()) / 60000);
       return {
         success: true,
         message: `Token still valid for ${remainingMinutes} minutes`,
-        expiresAt: new Date(expiresAt),
+        expiresAt: new Date(originalExpiresAt),
       };
     }
 
-    logger.info('Token expiring soon, refreshing...');
+    this.logger.info('Token expiring soon, refreshing...');
 
     try {
       // 呼叫 refresh API
@@ -291,6 +292,21 @@ export class ClaudeTokenRefreshService {
       const isRefreshTokenExpired = statusCode === 400 && oauthError === 'invalid_grant';
 
       if (isRefreshTokenExpired) {
+        // 跨 process 容錯：檢查 credentials 是否已被其他 process 更新
+        const updatedCredentials = await this.readCredentials();
+        if (updatedCredentials?.claudeAiOauth) {
+          const newExpiresAt = updatedCredentials.claudeAiOauth.expiresAt;
+          if (newExpiresAt !== originalExpiresAt && !this.isTokenExpiringSoon(newExpiresAt)) {
+            this.logger.info('Token was refreshed by another process, skipping re-login notification');
+            this.consecutiveFailures = 0;
+            return {
+              success: true,
+              message: 'Token refreshed by another process',
+              expiresAt: new Date(newExpiresAt),
+            };
+          }
+        }
+
         await this.notify(
           '⚠️ *Claude Token 已過期*\n' +
             'Refresh token 已失效，需要重新登入。\n' +
@@ -309,7 +325,7 @@ export class ClaudeTokenRefreshService {
       }
 
       // 其他錯誤
-      logger.error('Refresh failed:', errorMessage);
+      this.logger.error('Refresh failed:', errorMessage);
 
       // 連續失敗多次時發送通知
       if (this.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
@@ -388,13 +404,13 @@ export class ClaudeTokenRefreshService {
    */
   start(): void {
     if (this.isRunning) {
-      logger.info('Service already running');
+      this.logger.info('Service already running');
       return;
     }
 
-    logger.info('Starting token refresh service');
-    logger.info(`Check interval: ${CHECK_INTERVAL_MS / 60000} minutes`);
-    logger.info(`Refresh threshold: ${REFRESH_BEFORE_EXPIRY_MS / 60000} minutes before expiry`);
+    this.logger.info('Starting token refresh service');
+    this.logger.info(`Check interval: ${CHECK_INTERVAL_MS / 60000} minutes`);
+    this.logger.info(`Refresh threshold: ${REFRESH_BEFORE_EXPIRY_MS / 60000} minutes before expiry`);
 
     this.isRunning = true;
 
@@ -411,23 +427,23 @@ export class ClaudeTokenRefreshService {
    * 執行檢查
    */
   private async performCheck(): Promise<void> {
-    logger.debug('Checking token status...');
+    this.logger.debug('Checking token status...');
 
     const status = await this.getTokenStatus();
 
     if (!status.hasCredentials) {
-      logger.debug('No credentials found, skipping check');
+      this.logger.debug('No credentials found, skipping check');
       return;
     }
 
-    logger.debug(
+    this.logger.debug(
       `Token status: expires in ${status.remainingMinutes} minutes, ` +
         `expired=${status.isExpired}, expiringSoon=${status.isExpiringSoon}`
     );
 
     if (status.isExpired || status.isExpiringSoon) {
       const result = await this.refreshToken();
-      logger.info(`Refresh result: ${result.message}`);
+      this.logger.info(`Refresh result: ${result.message}`);
     }
   }
 
@@ -440,7 +456,7 @@ export class ClaudeTokenRefreshService {
       this.checkInterval = null;
     }
     this.isRunning = false;
-    logger.info('Service stopped');
+    this.logger.info('Service stopped');
   }
 
   /**
@@ -454,9 +470,9 @@ export class ClaudeTokenRefreshService {
 // 導出單例
 let instance: ClaudeTokenRefreshService | null = null;
 
-export function getTokenRefreshService(): ClaudeTokenRefreshService {
+export function getTokenRefreshService(processLabel?: string): ClaudeTokenRefreshService {
   if (!instance) {
-    instance = new ClaudeTokenRefreshService();
+    instance = new ClaudeTokenRefreshService(processLabel);
   }
   return instance;
 }

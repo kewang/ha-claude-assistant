@@ -425,7 +425,7 @@ async function main(): Promise<void> {
   }
 
   // 初始化 Token 刷新服務
-  const tokenRefreshService = getTokenRefreshService();
+  const tokenRefreshService = getTokenRefreshService('EventListener');
   tokenRefreshService.setNotificationCallback(async (message: string) => {
     await notificationManager.send({ text: message, markdown: message, source: 'event' });
   });

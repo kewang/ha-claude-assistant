@@ -1,5 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const { mockCreateLogger } = vi.hoisted(() => {
+  const mockCreateLogger = vi.fn(() => ({
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    raw: vi.fn(),
+  }));
+  return { mockCreateLogger };
+});
+
 // Mock dependencies before importing the module
 vi.mock('../src/core/env-detect.js', () => ({
   detectEnvironment: () => ({
@@ -12,13 +23,7 @@ vi.mock('../src/core/env-detect.js', () => ({
 }));
 
 vi.mock('../src/utils/logger.js', () => ({
-  createLogger: () => ({
-    info: vi.fn(),
-    error: vi.fn(),
-    warn: vi.fn(),
-    debug: vi.fn(),
-    raw: vi.fn(),
-  }),
+  createLogger: mockCreateLogger,
 }));
 
 vi.mock('../src/core/claude-oauth-config.js', () => ({
@@ -147,5 +152,110 @@ describe('ClaudeTokenRefreshService - Concurrency Control', () => {
     expect(result2.success).toBe(true);
 
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ClaudeTokenRefreshService - Cross-Process Tolerance', () => {
+  let service: ClaudeTokenRefreshService;
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+  let notifyCallback: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    service = new ClaudeTokenRefreshService();
+    notifyCallback = vi.fn().mockResolvedValue(undefined);
+    service.setNotificationCallback(notifyCallback);
+    mockWriteFile.mockResolvedValue(undefined);
+    fetchSpy = vi.spyOn(globalThis, 'fetch');
+  });
+
+  it('should return success when invalid_grant but credentials already updated by another process', async () => {
+    const originalExpiresAt = Date.now() + 5 * 60 * 1000; // 5 min left (expiring soon)
+    const updatedExpiresAt = Date.now() + 8 * 60 * 60 * 1000; // 8 hours (refreshed by other process)
+
+    // First readFile call: return expiring credentials
+    mockReadFile.mockResolvedValueOnce(JSON.stringify({
+      claudeAiOauth: {
+        accessToken: 'old-access-token',
+        refreshToken: 'old-refresh-token',
+        expiresAt: originalExpiresAt,
+        scopes: ['user:inference'],
+      },
+    }));
+
+    // Mock fetch to return invalid_grant
+    const invalidGrantError = new Error('OAuth refresh failed: 400 Bad Request - {"error":"invalid_grant"}');
+    (invalidGrantError as unknown as { statusCode: number }).statusCode = 400;
+    (invalidGrantError as unknown as { oauthError: string }).oauthError = 'invalid_grant';
+    fetchSpy.mockRejectedValueOnce(invalidGrantError);
+
+    // Second readFile call (cross-process check): credentials already updated
+    mockReadFile.mockResolvedValueOnce(JSON.stringify({
+      claudeAiOauth: {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+        expiresAt: updatedExpiresAt,
+        scopes: ['user:inference'],
+      },
+    }));
+
+    const result = await service.refreshToken();
+
+    expect(result.success).toBe(true);
+    expect(result.message).toBe('Token refreshed by another process');
+    expect(notifyCallback).not.toHaveBeenCalled();
+  });
+
+  it('should send notification when invalid_grant and credentials NOT updated', async () => {
+    const originalExpiresAt = Date.now() + 5 * 60 * 1000;
+
+    // First readFile: expiring credentials
+    mockReadFile.mockResolvedValueOnce(JSON.stringify({
+      claudeAiOauth: {
+        accessToken: 'old-access-token',
+        refreshToken: 'old-refresh-token',
+        expiresAt: originalExpiresAt,
+        scopes: ['user:inference'],
+      },
+    }));
+
+    // Mock fetch to return invalid_grant
+    const invalidGrantError = new Error('OAuth refresh failed: 400 Bad Request - {"error":"invalid_grant"}');
+    (invalidGrantError as unknown as { statusCode: number }).statusCode = 400;
+    (invalidGrantError as unknown as { oauthError: string }).oauthError = 'invalid_grant';
+    fetchSpy.mockRejectedValueOnce(invalidGrantError);
+
+    // Second readFile (cross-process check): same expiresAt, not updated
+    mockReadFile.mockResolvedValueOnce(JSON.stringify({
+      claudeAiOauth: {
+        accessToken: 'old-access-token',
+        refreshToken: 'old-refresh-token',
+        expiresAt: originalExpiresAt,
+        scopes: ['user:inference'],
+      },
+    }));
+
+    const result = await service.refreshToken();
+
+    expect(result.success).toBe(false);
+    expect(result.needsRelogin).toBe(true);
+    expect(notifyCallback).toHaveBeenCalledTimes(1);
+    expect(notifyCallback).toHaveBeenCalledWith(expect.stringContaining('Claude Token 已過期'));
+  });
+});
+
+describe('ClaudeTokenRefreshService - Process Label', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should create logger with label when processLabel is provided', () => {
+    new ClaudeTokenRefreshService('Scheduler');
+    expect(mockCreateLogger).toHaveBeenCalledWith('TokenRefresh:Scheduler');
+  });
+
+  it('should create logger without label when processLabel is not provided', () => {
+    new ClaudeTokenRefreshService();
+    expect(mockCreateLogger).toHaveBeenCalledWith('TokenRefresh');
   });
 });

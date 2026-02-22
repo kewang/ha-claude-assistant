@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.10.1] - 2026-02-22
+
+### Fixed
+- 修復跨 process token refresh race condition：多個 daemon 同時刷新 token 時，第二個 process 因舊 refresh token 已被作廢而誤發「需要重新登入」通知。現在會先檢查 credentials 是否已被其他 process 更新
+- Token refresh log 新增 process 識別標籤（如 `[TokenRefresh:Scheduler]`、`[TokenRefresh:EventListener]`），方便跨 process debug
+
 ## [1.10.0] - 2026-02-22
 
 ### Changed

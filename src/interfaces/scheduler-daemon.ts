@@ -341,7 +341,7 @@ async function main(): Promise<void> {
   }
 
   // 初始化 Token 刷新服務
-  const tokenRefreshService = getTokenRefreshService();
+  const tokenRefreshService = getTokenRefreshService('Scheduler');
 
   // 設定通知回呼
   tokenRefreshService.setNotificationCallback(async (message: string) => {

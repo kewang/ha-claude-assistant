@@ -125,7 +125,7 @@ async function handleRequest(
 
     if (routePath === '/api/status' && method === 'GET') {
       // Token 狀態
-      const tokenService = getTokenRefreshService();
+      const tokenService = getTokenRefreshService('WebUI');
       const status = await tokenService.getTokenStatus();
       sendJson(res, {
         hasCredentials: status.hasCredentials,
@@ -169,7 +169,7 @@ async function handleRequest(
 
     if (routePath === '/api/auth/refresh' && method === 'POST') {
       // 手動刷新 Token
-      const tokenService = getTokenRefreshService();
+      const tokenService = getTokenRefreshService('WebUI');
       const result = await tokenService.refreshToken();
       sendJson(res, {
         success: result.success,
